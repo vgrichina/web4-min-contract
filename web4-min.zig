@@ -38,6 +38,8 @@ export fn web4_get() void {
 
     log_utf8(inputData.len, @ptrToInt(inputData.ptr));
 
+    // NOTE: If you uncomment JSON parsing – generated WASM goes from 9 KB to 50 KB
+
     // var requestStream = std.json.TokenStream.init(inputData);
     // const args = std.json.parse(Web4Args, &requestStream, .{
     //     .ignore_unknown_fields = true,
