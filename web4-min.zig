@@ -36,6 +36,20 @@ fn base64EncodeAlloc(data: []const u8) []const u8 {
     return encoder.encode(dataBuffer, data);
 }
 
+fn joinAlloc(parts: anytype) []const u8 {
+    var totalSize: usize = 0;
+    inline for (parts) |part| {
+        totalSize += part.len;
+    }
+    const result = allocator.alloc(u8, totalSize) catch unreachable;
+    var offset: usize = 0;
+    inline for (parts) |part| {
+        std.mem.copy(u8, result[offset..offset + part.len], part);
+        offset += part.len;
+    }
+    return result;
+}
+
 // Main entry point for web4 contract.
 export fn web4_get() void {
     // Store method arguments blob in a register 0
@@ -62,16 +76,23 @@ export fn web4_get() void {
     } else "/";
 
     // Log request path
-    log(std.fmt.allocPrint(allocator, "path: {s}", .{path}) catch unreachable);
+    log(joinAlloc(.{"path: ", path}));
 
     // Render response
-    const body = std.fmt.allocPrint(allocator, "Hello from <b>{s}</b>!", .{path}) catch unreachable;
+    const body = joinAlloc(.{"Hello from <b>", path, "</b>!"});
 
     // Construct response object
     const base64Body = base64EncodeAlloc(body);
-    const responseTemplate = \\{{"contentType":"{s}","status":{d},"body":"{s}"}}
-        ;
-    const responseData = std.fmt.allocPrint(allocator, responseTemplate, .{"text/html", 200, base64Body}) catch unreachable;
+    const responseData = joinAlloc(.{
+        \\{
+        \\  "status": 200,
+        \\  "contentType": "text/html",
+        \\  "body":
+        , "\"",
+        base64Body,
+        "\"",
+        \\ }
+    });
 
     // Return method result
     valueReturn(responseData);
