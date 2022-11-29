@@ -19,18 +19,6 @@ export fn web4_get() void {
         // cacheControl: ?[]const u8,
     };
 
-    const Web4Request = struct {
-        // accountId: ?[]const u8,
-        path: []const u8,
-        // params: std.StringHashMap([][]const u8),
-        // query: std.StringHashMap(Web4Response),
-    };
-
-    const Web4Args = struct {
-        request: Web4Request,
-    };
-    _ = Web4Args;
-
     input(0);
     const inputLength = @truncate(usize, register_len(0));
     const inputData = allocator.alloc(u8, inputLength) catch unreachable;
@@ -38,23 +26,23 @@ export fn web4_get() void {
 
     log_utf8(inputData.len, @ptrToInt(inputData.ptr));
 
-    // NOTE: If you uncomment JSON parsing – generated WASM goes from 9 KB to 50 KB
+    // NOTE: Parsing using TokenStream results in smaller binary than deserializing into object
+    var requestStream = std.json.TokenStream.init(inputData);
+    var lastString: [] const u8 = "";
+    var path = while (requestStream.next() catch unreachable) |token| {
+        switch (token) {
+            .String => |stringToken| {
+                const str = stringToken.slice(requestStream.slice, requestStream.i - 1);
+                if (std.mem.eql(u8, lastString, "path")) {
+                    break str;
+                }
+                lastString = str;
+            },
+            else => {},
+        }
+    } else "/";
 
-    // var requestStream = std.json.TokenStream.init(inputData);
-    // const args = std.json.parse(Web4Args, &requestStream, .{
-    //     .ignore_unknown_fields = true,
-    //     .allocator = allocator,
-    // }) catch unreachable;
-    
-    // catch |err| {
-    //     // const errorStr = std.fmt.allocPrint(allocator, "Error: {}", .{err}) catch unreachable;
-    //     // log_utf8(errorStr.len, @ptrToInt(errorStr.ptr));
-    //     return;
-    // };
-    // _ = args;
-
-    // const body = std.fmt.allocPrint(allocator, "Hello from <b>{s}</b>!", .{args.request.path}) catch unreachable;
-    const body = "Hello from <b>Web4</b>!";
+    const body = std.fmt.allocPrint(allocator, "Hello from <b>{s}</b>!", .{path}) catch unreachable;
     const encoder = std.base64.standard.Encoder;
     const bodySize = encoder.calcSize(body.len);
     const bodyBuffer = allocator.alloc(u8, bodySize) catch unreachable;
