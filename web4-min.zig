@@ -38,15 +38,6 @@ fn base64EncodeAlloc(data: []const u8) []const u8 {
 
 // Main entry point for web4 contract.
 export fn web4_get() void {
-    const Web4Response = struct {
-        contentType: []const u8,
-        status: u32 = 200,
-        body: []const u8,
-        // bodyUrl: ?[]const u8,
-        // preloadUrls: ?[]const []const u8,
-        // cacheControl: ?[]const u8,
-    };
-
     // Store method arguments blob in a register 0
     input(0);
 
@@ -78,8 +69,9 @@ export fn web4_get() void {
 
     // Construct response object
     const base64Body = base64EncodeAlloc(body);
-    const response = Web4Response{ .contentType = "text/html", .body = base64Body };
-    const responseData = std.json.stringifyAlloc(allocator, response, .{}) catch unreachable;
+    const responseTemplate = \\{{"contentType":"{s}","status":{d},"body":"{s}"}}
+        ;
+    const responseData = std.fmt.allocPrint(allocator, responseTemplate, .{"text/html", 200, base64Body}) catch unreachable;
 
     // Return method result
     valueReturn(responseData);
