@@ -5,12 +5,19 @@ var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 var allocator = arena.allocator();
 
 // Import host functions provided by NEAR runtime.
-// See https://github.com/near/near-sdk-rs/blob/78c16447486285fd952765ef3e727e16d6c8c867/near-sdk/src/environment/env.rs#L117
+// See https://github.com/near/near-sdk-rs/blob/3ca87c95788b724646e0247cfd3feaccec069b97/near-sdk/src/environment/env.rs#L116
+// and https://github.com/near/near-sdk-rs/blob/3ca87c95788b724646e0247cfd3feaccec069b97/sys/src/lib.rs
 extern fn input(register_id: u64) void;
 extern fn read_register(register_id: u64, ptr: u64) void;
 extern fn register_len(register_id: u64) u64;
 extern fn value_return(value_len: u64, value_ptr: u64) void;
 extern fn log_utf8(len: u64, ptr: u64) void;
+extern fn storage_has_key(key_len: u64, key_ptr: u64) u64;
+extern fn storage_read(key_len: u64, key_ptr: u64, register_id: u64) u64;
+extern fn storage_write(key_len: u64, key_ptr: u64, value_len: u64, value_ptr: u64, register_id: u64) u64;
+
+const SCRATCH_REGISTER = 0xffffffff;
+const WEB4_STATIC_URL_KEY = "web4:staticUrl";
 
 // Helper wrapper functions for interacting with the host
 fn log(str: []const u8) void {
@@ -27,6 +34,30 @@ fn readRegisterAlloc(register_id: u64) []u8 {
     const bytes = allocator.alloc(u8, len) catch unreachable;
     read_register(register_id, @ptrToInt(bytes.ptr));
     return bytes;
+}
+
+fn readInputAlloc() []u8 {
+    input(SCRATCH_REGISTER);
+    return readRegisterAlloc(SCRATCH_REGISTER);
+}
+
+fn readStorageAlloc(key: []const u8) ?[]u8 {
+    const res = storage_read(key.len, @ptrToInt(key.ptr), SCRATCH_REGISTER);
+    return switch (res) {
+        0 => null,
+        1 => readRegisterAlloc(SCRATCH_REGISTER),
+        // TODO: Check if generates proper wasm unreachable when optimized
+        else => unreachable,
+    };
+}
+
+fn storageWrite(key: []const u8, value: []const u8) bool {
+    const res = storage_write(key.len, @ptrToInt(key.ptr), value.len, @ptrToInt(value.ptr), SCRATCH_REGISTER);
+    return switch (res) {
+        0 => false,
+        1 => true,
+        else => unreachable,
+    };
 }
 
 fn base64EncodeAlloc(data: []const u8) []const u8 {
@@ -52,11 +83,8 @@ fn joinAlloc(parts: anytype) []const u8 {
 
 // Main entry point for web4 contract.
 export fn web4_get() void {
-    // Store method arguments blob in a register 0
-    input(0);
-
-    // Read method arguments blob from register 0
-    const inputData = readRegisterAlloc(0);
+    // Read method arguments blob
+    const inputData = readInputAlloc();
 
     // Parse method arguments JSON
     // NOTE: Parsing using TokenStream results in smaller binary than deserializing into object
@@ -78,22 +106,75 @@ export fn web4_get() void {
     // Log request path
     log(joinAlloc(.{"path: ", path}));
 
-    // Render response
-    const body = joinAlloc(.{"Hello from <b>", path, "</b>!"});
+    // Read static URL from storage
+    const staticUrl = readStorageAlloc(WEB4_STATIC_URL_KEY) orelse {
+        // Render response
+        const body = joinAlloc(.{"Hello from <b>", path, "</b>!"});
+
+        // Construct response object
+        const base64Body = base64EncodeAlloc(body);
+        const responseData = joinAlloc(.{
+            \\{
+            \\  "status": 200,
+            \\  "contentType": "text/html",
+            \\  "body":
+            , "\"",
+            base64Body,
+            "\"",
+            \\ }
+        });
+
+        // Return method result
+        valueReturn(responseData);
+        return;
+    };
 
     // Construct response object
-    const base64Body = base64EncodeAlloc(body);
     const responseData = joinAlloc(.{
         \\{
         \\  "status": 200,
         \\  "contentType": "text/html",
-        \\  "body":
+        \\  "bodyUrl":
         , "\"",
-        base64Body,
+        staticUrl,
+        path,
         "\"",
         \\ }
     });
 
     // Return method result
     valueReturn(responseData);
+}
+
+// Update current static content URL in smart contract storage
+// NOTE: This is useful for web4-deploy tool
+export fn web4_setStaticUrl() void {
+    // Store method arguments blob in a register 0
+    input(0);
+
+    // Read method arguments blob from register 0
+    const inputData = readRegisterAlloc(0);
+
+    // Parse method arguments JSON
+    // NOTE: Parsing using TokenStream results in smaller binary than deserializing into object
+    var requestStream = std.json.TokenStream.init(inputData);
+    var lastString: [] const u8 = "";
+    var staticUrl = while (requestStream.next() catch unreachable) |token| {
+        switch (token) {
+            .String => |stringToken| {
+                const str = stringToken.slice(requestStream.slice, requestStream.i - 1);
+                if (std.mem.eql(u8, lastString, "url")) {
+                    break str;
+                }
+                lastString = str;
+            },
+            else => {},
+        }
+    } else "";
+
+    // Log updated URL
+    log(joinAlloc(.{"staticUrl: ", staticUrl}));
+
+    // Write parsed static URL to storage
+    _ = storageWrite(WEB4_STATIC_URL_KEY, staticUrl);
 }
