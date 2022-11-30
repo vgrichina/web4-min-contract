@@ -14,3 +14,23 @@ zig build-lib web4-min.zig  -target wasm32-freestanding -dynamic -OReleaseSmall
 ```
 
 You should get `web4-min.wasm` file.
+
+## Deploying smart contract
+
+Install [near-cli](https://github.com/near/near-cli) first.
+
+Then run:
+
+```bash
+near deploy --wasmFile web4-min.wasm --accountId <your-account>.near
+```
+
+See more on [how to deploy NEAR smart contracts](https://docs.near.org/develop/deploy).
+
+## Deploying website
+
+Run web4-deploy using `npx`:
+
+```bash
+npx web4-deploy path/to/your/website <your-account>.near
+```
