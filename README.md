@@ -29,8 +29,14 @@ See more on [how to deploy NEAR smart contracts](https://docs.near.org/develop/d
 
 ## Deploying website
 
-Run web4-deploy using `npx`:
+Run [web4-deploy](https://github.com/vgrichina/web4-deploy) using `npx`:
 
 ```bash
 npx web4-deploy path/to/your/website <your-account>.near
 ```
+
+## How it works
+
+`web4-deploy` will upload your website to IPFS and then call `web4_setStaticUrl` method in this smart contract to set IPFS hash of your website.
+
+Then you can access your website using `https://<your-account>.near.page` Web4 gateway.
