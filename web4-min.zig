@@ -8,6 +8,8 @@ var allocator = arena.allocator();
 // See https://github.com/near/near-sdk-rs/blob/3ca87c95788b724646e0247cfd3feaccec069b97/near-sdk/src/environment/env.rs#L116
 // and https://github.com/near/near-sdk-rs/blob/3ca87c95788b724646e0247cfd3feaccec069b97/sys/src/lib.rs
 extern fn input(register_id: u64) void;
+extern fn signer_account_id(register_id: u64) void;
+extern fn current_account_id(register_id: u64) void;
 extern fn read_register(register_id: u64, ptr: u64) void;
 extern fn register_len(register_id: u64) u64;
 extern fn value_return(value_len: u64, value_ptr: u64) void;
@@ -81,6 +83,17 @@ fn joinAlloc(parts: anytype) []const u8 {
     return result;
 }
 
+fn assertSelf() void {
+    current_account_id(SCRATCH_REGISTER);
+    const contractName = readRegisterAlloc(SCRATCH_REGISTER);
+    signer_account_id(SCRATCH_REGISTER);
+    const signerName = readRegisterAlloc(SCRATCH_REGISTER);
+    if (!std.mem.eql(u8, contractName, signerName)) {
+        // Access not allowed
+        unreachable;
+    }
+}
+
 // Main entry point for web4 contract.
 export fn web4_get() void {
     // Read method arguments blob
@@ -149,11 +162,11 @@ export fn web4_get() void {
 // Update current static content URL in smart contract storage
 // NOTE: This is useful for web4-deploy tool
 export fn web4_setStaticUrl() void {
-    // Store method arguments blob in a register 0
-    input(0);
+    // NOTE: Can change this check to alow different owners
+    assertSelf();
 
-    // Read method arguments blob from register 0
-    const inputData = readRegisterAlloc(0);
+    // Read method arguments blob
+    const inputData = readInputAlloc();
 
     // Parse method arguments JSON
     // NOTE: Parsing using TokenStream results in smaller binary than deserializing into object
