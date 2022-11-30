@@ -62,13 +62,6 @@ fn storageWrite(key: []const u8, value: []const u8) bool {
     };
 }
 
-fn base64EncodeAlloc(data: []const u8) []const u8 {
-    const encoder = std.base64.standard.Encoder;
-    const dataSize = encoder.calcSize(data.len);
-    const dataBuffer = allocator.alloc(u8, dataSize) catch unreachable;
-    return encoder.encode(dataBuffer, data);
-}
-
 fn joinAlloc(parts: anytype) []const u8 {
     var totalSize: usize = 0;
     inline for (parts) |part| {
@@ -93,6 +86,9 @@ fn assertSelf() void {
         unreachable;
     }
 }
+
+// Default URL, contains some instructions on what to do next
+const DEFAULT_STATIC_URL = "ipfs://bafybeidc4lvv4bld66h4rmy2jvgjdrgul5ub5s75vbqrcbjd3jeaqnyd5e";
 
 // Main entry point for web4 contract.
 export fn web4_get() void {
@@ -120,28 +116,7 @@ export fn web4_get() void {
     log(joinAlloc(.{"path: ", path}));
 
     // Read static URL from storage
-    const staticUrl = readStorageAlloc(WEB4_STATIC_URL_KEY) orelse {
-        // Render response
-        const body = joinAlloc(.{"Hello from <b>", path, "</b>!"});
-
-        // Construct response object
-        const base64Body = base64EncodeAlloc(body);
-        const responseData = joinAlloc(.{
-            \\{
-            \\  "status": 200,
-            \\  "contentType": "text/html",
-            \\  "body":
-            , "\"",
-            base64Body,
-            "\"",
-            \\ }
-        });
-
-        // Return method result
-        valueReturn(responseData);
-        return;
-    };
-
+    const staticUrl = readStorageAlloc(WEB4_STATIC_URL_KEY) orelse DEFAULT_STATIC_URL;
     // Construct response object
     const responseData = joinAlloc(.{
         \\{
