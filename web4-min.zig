@@ -121,7 +121,6 @@ export fn web4_get() void {
     const responseData = joinAlloc(.{
         \\{
         \\  "status": 200,
-        \\  "contentType": "text/html",
         \\  "bodyUrl":
         , "\"",
         staticUrl,
