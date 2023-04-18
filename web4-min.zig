@@ -14,16 +14,22 @@ extern fn read_register(register_id: u64, ptr: u64) void;
 extern fn register_len(register_id: u64) u64;
 extern fn value_return(value_len: u64, value_ptr: u64) void;
 extern fn log_utf8(len: u64, ptr: u64) void;
+extern fn panic_utf8(len: u64, ptr: u64) void;
 extern fn storage_has_key(key_len: u64, key_ptr: u64) u64;
 extern fn storage_read(key_len: u64, key_ptr: u64, register_id: u64) u64;
 extern fn storage_write(key_len: u64, key_ptr: u64, value_len: u64, value_ptr: u64, register_id: u64) u64;
 
 const SCRATCH_REGISTER = 0xffffffff;
 const WEB4_STATIC_URL_KEY = "web4:staticUrl";
+const WEB4_OWNER_KEY = "web4:owner";
 
 // Helper wrapper functions for interacting with the host
 fn log(str: []const u8) void {
     log_utf8(str.len, @ptrToInt(str.ptr));
+}
+
+fn panic(str: []const u8) void {
+    panic_utf8(str.len, @ptrToInt(str.ptr));
 }
 
 fn valueReturn(value: []const u8) void {
@@ -32,10 +38,13 @@ fn valueReturn(value: []const u8) void {
 
 fn readRegisterAlloc(register_id: u64) []u8 {
     const len = @truncate(usize, register_len(register_id));
-    // TODO: Explicit NEAR-compatible panic instead of unreachable?
-    const bytes = allocator.alloc(u8, len) catch unreachable;
+    // NOTE: 1 more byte is allocated as allocator.alloc() doesn't allocate 0 bytes
+    const bytes = allocator.alloc(u8, len + 1) catch {
+        panic("Failed to allocate memory");
+        unreachable;
+    };
     read_register(register_id, @ptrToInt(bytes.ptr));
-    return bytes;
+    return bytes[0..len];
 }
 
 fn readInputAlloc() []u8 {
@@ -48,7 +57,6 @@ fn readStorageAlloc(key: []const u8) ?[]u8 {
     return switch (res) {
         0 => null,
         1 => readRegisterAlloc(SCRATCH_REGISTER),
-        // TODO: Check if generates proper wasm unreachable when optimized
         else => unreachable,
     };
 }
@@ -67,7 +75,10 @@ fn joinAlloc(parts: anytype) []const u8 {
     inline for (parts) |part| {
         totalSize += part.len;
     }
-    const result = allocator.alloc(u8, totalSize) catch unreachable;
+    const result = allocator.alloc(u8, totalSize) catch {
+        panic("Failed to allocate memory");
+        unreachable;
+    };
     var offset: usize = 0;
     inline for (parts) |part| {
         std.mem.copy(u8, result[offset..offset + part.len], part);
@@ -76,15 +87,19 @@ fn joinAlloc(parts: anytype) []const u8 {
     return result;
 }
 
-fn assertSelf() void {
+fn assertSelfOrOwner() void {
     current_account_id(SCRATCH_REGISTER);
     const contractName = readRegisterAlloc(SCRATCH_REGISTER);
     signer_account_id(SCRATCH_REGISTER);
     const signerName = readRegisterAlloc(SCRATCH_REGISTER);
-    if (!std.mem.eql(u8, contractName, signerName)) {
-        // Access not allowed
+    const ownerName = readStorageAlloc(WEB4_OWNER_KEY) orelse contractName;
+
+    log(joinAlloc(.{"contractName: ", contractName, ", signerName: ", signerName, ", ownerName: ", ownerName}));
+    if (!std.mem.eql(u8, contractName, signerName) and !std.mem.eql(u8, ownerName, signerName)) {
+        panic("Access denied");
         unreachable;
     }
+    log("Access allowed");
 }
 
 // Default URL, contains some instructions on what to do next
@@ -136,8 +151,7 @@ export fn web4_get() void {
 // Update current static content URL in smart contract storage
 // NOTE: This is useful for web4-deploy tool
 export fn web4_setStaticUrl() void {
-    // NOTE: Can change this check to alow different owners
-    assertSelf();
+    assertSelfOrOwner();
 
     // Read method arguments blob
     const inputData = readInputAlloc();
@@ -164,4 +178,36 @@ export fn web4_setStaticUrl() void {
 
     // Write parsed static URL to storage
     _ = storageWrite(WEB4_STATIC_URL_KEY, staticUrl);
+}
+
+// Update current owner account ID – if set this account can update contract config
+// NOTE: This is useful to deploy contract to subaccount like web4.<account_id>.near and then transfer ownership to <account_id>.near
+export fn web4_setOwner() void {
+    assertSelfOrOwner();
+
+    // Read method arguments blob
+    const inputData = readInputAlloc();
+
+    // Parse method arguments JSON
+    // NOTE: Parsing using TokenStream results in smaller binary than deserializing into object
+    var requestStream = std.json.TokenStream.init(inputData);
+    var lastString: [] const u8 = "";
+    var owner = while (requestStream.next() catch unreachable) |token| {
+        switch (token) {
+            .String => |stringToken| {
+                const str = stringToken.slice(requestStream.slice, requestStream.i - 1);
+                if (std.mem.eql(u8, lastString, "accountId")) {
+                    break str;
+                }
+                lastString = str;
+            },
+            else => {},
+        }
+    } else "";
+
+    // Log updated owner
+    log(joinAlloc(.{"owner: ", owner}));
+
+    // Write parsed owner to storage
+    _ = storageWrite(WEB4_OWNER_KEY, owner);
 }
