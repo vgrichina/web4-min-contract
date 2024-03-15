@@ -1,8 +1,7 @@
 const std = @import("std");
 
 // NOTE: In smart contract context don't really have to free memory before execution ends
-var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-var allocator = arena.allocator();
+var allocator = std.heap.wasm_allocator;
 
 // Import host functions provided by NEAR runtime.
 // See https://github.com/near/near-sdk-rs/blob/3ca87c95788b724646e0247cfd3feaccec069b97/near-sdk/src/environment/env.rs#L116
@@ -25,35 +24,35 @@ const WEB4_OWNER_KEY = "web4:owner";
 
 // Helper wrapper functions for interacting with the host
 fn log(str: []const u8) void {
-    log_utf8(str.len, @ptrToInt(str.ptr));
+    log_utf8(str.len, @intFromPtr(str.ptr));
 }
 
 fn panic(str: []const u8) void {
-    panic_utf8(str.len, @ptrToInt(str.ptr));
+    panic_utf8(str.len, @intFromPtr(str.ptr));
 }
 
 fn valueReturn(value: []const u8) void {
-    value_return(value.len, @ptrToInt(value.ptr));
+    value_return(value.len, @intFromPtr(value.ptr));
 }
 
-fn readRegisterAlloc(register_id: u64) []u8 {
-    const len = @truncate(usize, register_len(register_id));
+fn readRegisterAlloc(register_id: u64) []const u8 {
+    const len: usize = @truncate(register_len(register_id));
     // NOTE: 1 more byte is allocated as allocator.alloc() doesn't allocate 0 bytes
     const bytes = allocator.alloc(u8, len + 1) catch {
         panic("Failed to allocate memory");
         unreachable;
     };
-    read_register(register_id, @ptrToInt(bytes.ptr));
+    read_register(register_id, @intFromPtr(bytes.ptr));
     return bytes[0..len];
 }
 
-fn readInputAlloc() []u8 {
+fn readInputAlloc() []const u8 {
     input(SCRATCH_REGISTER);
     return readRegisterAlloc(SCRATCH_REGISTER);
 }
 
-fn readStorageAlloc(key: []const u8) ?[]u8 {
-    const res = storage_read(key.len, @ptrToInt(key.ptr), SCRATCH_REGISTER);
+fn readStorageAlloc(key: []const u8) ?[]const u8 {
+    const res = storage_read(key.len, @intFromPtr(key.ptr), SCRATCH_REGISTER);
     return switch (res) {
         0 => null,
         1 => readRegisterAlloc(SCRATCH_REGISTER),
@@ -62,7 +61,7 @@ fn readStorageAlloc(key: []const u8) ?[]u8 {
 }
 
 fn storageWrite(key: []const u8, value: []const u8) bool {
-    const res = storage_write(key.len, @ptrToInt(key.ptr), value.len, @ptrToInt(value.ptr), SCRATCH_REGISTER);
+    const res = storage_write(key.len, @intFromPtr(key.ptr), value.len, @intFromPtr(value.ptr), SCRATCH_REGISTER);
     return switch (res) {
         0 => false,
         1 => true,
@@ -81,7 +80,7 @@ fn joinAlloc(parts: anytype) []const u8 {
     };
     var offset: usize = 0;
     inline for (parts) |part| {
-        std.mem.copy(u8, result[offset..offset + part.len], part);
+        std.mem.copy(u8, result[offset .. offset + part.len], part);
         offset += part.len;
     }
     return result;
@@ -94,7 +93,7 @@ fn assertSelfOrOwner() void {
     const signerName = readRegisterAlloc(SCRATCH_REGISTER);
     const ownerName = readStorageAlloc(WEB4_OWNER_KEY) orelse contractName;
 
-    log(joinAlloc(.{"contractName: ", contractName, ", signerName: ", signerName, ", ownerName: ", ownerName}));
+    log(joinAlloc(.{ "contractName: ", contractName, ", signerName: ", signerName, ", ownerName: ", ownerName }));
     if (!std.mem.eql(u8, contractName, signerName) and !std.mem.eql(u8, ownerName, signerName)) {
         panic("Access denied");
         unreachable;
@@ -110,25 +109,11 @@ export fn web4_get() void {
     // Read method arguments blob
     const inputData = readInputAlloc();
 
-    // Parse method arguments JSON
-    // NOTE: Parsing using TokenStream results in smaller binary than deserializing into object
-    var requestStream = std.json.TokenStream.init(inputData);
-    var lastString: [] const u8 = "";
-    var path = while (requestStream.next() catch unreachable) |token| {
-        switch (token) {
-            .String => |stringToken| {
-                const str = stringToken.slice(requestStream.slice, requestStream.i - 1);
-                if (std.mem.eql(u8, lastString, "path")) {
-                    break str;
-                }
-                lastString = str;
-            },
-            else => {},
-        }
-    } else "/";
+    // Parse method arguments JSON and extract path
+    const path = extract_string(inputData, "path") orelse "/";
 
     // Log request path
-    log(joinAlloc(.{"path: ", path}));
+    log(joinAlloc(.{ "path: ", path }));
 
     // Read static URL from storage
     const staticUrl = readStorageAlloc(WEB4_STATIC_URL_KEY) orelse DEFAULT_STATIC_URL;
@@ -137,7 +122,8 @@ export fn web4_get() void {
         \\{
         \\  "status": 200,
         \\  "bodyUrl":
-        , "\"",
+        ,
+        "\"",
         staticUrl,
         path,
         "\"",
@@ -148,6 +134,30 @@ export fn web4_get() void {
     valueReturn(responseData);
 }
 
+// Parse method arguments JSON
+// NOTE: Parsing using std.json.Scanner results in smaller binary than deserializing into object
+fn extract_string(inputData: []const u8, keyName: []const u8) ?[]const u8 {
+    var lastKey: []const u8 = "";
+    var tokenizer = std.json.Scanner.initCompleteInput(allocator, inputData);
+    defer tokenizer.deinit();
+    return while (true) {
+        _ = switch (tokenizer.next() catch {
+            panic("Failed to parse JSON");
+            unreachable;
+        }) {
+            .string => |str| {
+                if (tokenizer.string_is_object_key) {
+                    lastKey = str;
+                } else if (std.mem.eql(u8, lastKey, keyName)) {
+                    break str;
+                }
+            },
+            .end_of_document => break null,
+            else => null,
+        };
+    };
+}
+
 // Update current static content URL in smart contract storage
 // NOTE: This is useful for web4-deploy tool
 export fn web4_setStaticUrl() void {
@@ -156,25 +166,11 @@ export fn web4_setStaticUrl() void {
     // Read method arguments blob
     const inputData = readInputAlloc();
 
-    // Parse method arguments JSON
-    // NOTE: Parsing using TokenStream results in smaller binary than deserializing into object
-    var requestStream = std.json.TokenStream.init(inputData);
-    var lastString: [] const u8 = "";
-    var staticUrl = while (requestStream.next() catch unreachable) |token| {
-        switch (token) {
-            .String => |stringToken| {
-                const str = stringToken.slice(requestStream.slice, requestStream.i - 1);
-                if (std.mem.eql(u8, lastString, "url")) {
-                    break str;
-                }
-                lastString = str;
-            },
-            else => {},
-        }
-    } else "";
+    // Parse method arguments JSON and extract staticUrl
+    const staticUrl = extract_string(inputData, "staticUrl") orelse DEFAULT_STATIC_URL;
 
     // Log updated URL
-    log(joinAlloc(.{"staticUrl: ", staticUrl}));
+    log(joinAlloc(.{ "staticUrl: ", staticUrl }));
 
     // Write parsed static URL to storage
     _ = storageWrite(WEB4_STATIC_URL_KEY, staticUrl);
@@ -188,25 +184,11 @@ export fn web4_setOwner() void {
     // Read method arguments blob
     const inputData = readInputAlloc();
 
-    // Parse method arguments JSON
-    // NOTE: Parsing using TokenStream results in smaller binary than deserializing into object
-    var requestStream = std.json.TokenStream.init(inputData);
-    var lastString: [] const u8 = "";
-    var owner = while (requestStream.next() catch unreachable) |token| {
-        switch (token) {
-            .String => |stringToken| {
-                const str = stringToken.slice(requestStream.slice, requestStream.i - 1);
-                if (std.mem.eql(u8, lastString, "accountId")) {
-                    break str;
-                }
-                lastString = str;
-            },
-            else => {},
-        }
-    } else "";
+    // Parse method arguments JSON and extract owner
+    const owner = extract_string(inputData, "accountId") orelse "";
 
     // Log updated owner
-    log(joinAlloc(.{"owner: ", owner}));
+    log(joinAlloc(.{ "owner: ", owner }));
 
     // Write parsed owner to storage
     _ = storageWrite(WEB4_OWNER_KEY, owner);

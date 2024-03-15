@@ -10,7 +10,7 @@ Install [Zig](https://ziglang.org/learn/getting-started/#installing-zig) first.
 Then run:
 
 ```bash
-zig build-lib web4-min.zig  -target wasm32-freestanding -dynamic -OReleaseSmall
+zig build-lib web4-min.zig -target wasm32-freestanding -dynamic -rdynamic -OReleaseSmall
 ```
 
 You should get `web4-min.wasm` file.
