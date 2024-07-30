@@ -2,4 +2,3 @@
 *.o
 neardev/
 .DS_Store
-.zig-cache
