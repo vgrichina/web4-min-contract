@@ -5,19 +5,19 @@ to deploy website tied to your `.near` account, with static content hosted on IP
 
 ## Building from source
 
-Install [Zig](https://ziglang.org/learn/getting-started/#installing-zig) first.
+Install [Zig](https://ziglang.org/learn/getting-started/#installing-zig). Below command uses [v0.13.0](https://github.com/ziglang/zig/releases/tag/0.13.0).
 
 Then run:
 
 ```bash
-zig build-lib web4-min.zig -target wasm32-freestanding -dynamic -rdynamic -OReleaseSmall
+zig build-exe web4-min.zig -target wasm32-freestanding -O ReleaseSmall --export=web4_get --export=web4_setStaticUrl --export=web4_setOwner -fno-entry
 ```
 
 You should get `web4-min.wasm` file.
 
 ## Deploying smart contract
 
-Install [near-cli](https://github.com/near/near-cli) first.
+Install [near-cli-rs](https://github.com/near/near-cli-rs) first.
 
 Then run:
 

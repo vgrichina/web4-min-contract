@@ -80,7 +80,7 @@ fn joinAlloc(parts: anytype) []const u8 {
     };
     var offset: usize = 0;
     inline for (parts) |part| {
-        std.mem.copy(u8, result[offset .. offset + part.len], part);
+        @memcpy(result[offset .. offset + part.len], part);
         offset += part.len;
     }
     return result;
@@ -105,12 +105,15 @@ fn assertSelfOrOwner() void {
 const DEFAULT_STATIC_URL = "ipfs://bafybeidc4lvv4bld66h4rmy2jvgjdrgul5ub5s75vbqrcbjd3jeaqnyd5e";
 
 // Main entry point for web4 contract.
-export fn web4_get() void {
+pub export fn web4_get() void {
     // Read method arguments blob
     const inputData = readInputAlloc();
 
     // Parse method arguments JSON and extract path
-    const path = extract_string(inputData, "path") orelse "/";
+    var path = extract_string(inputData, "path");
+    if (std.mem.eql(u8, path, DEFAULT_STATIC_URL)) {
+        path = "/";
+    }
 
     // Log request path
     log(joinAlloc(.{ "path: ", path }));
@@ -136,14 +139,14 @@ export fn web4_get() void {
 
 // Parse method arguments JSON
 // NOTE: Parsing using std.json.Scanner results in smaller binary than deserializing into object
-fn extract_string(inputData: []const u8, keyName: []const u8) ?[]const u8 {
+fn extract_string(inputData: []const u8, keyName: []const u8) []const u8 {
     var lastKey: []const u8 = "";
     var tokenizer = std.json.Scanner.initCompleteInput(allocator, inputData);
     defer tokenizer.deinit();
     return while (true) {
         _ = switch (tokenizer.next() catch {
-            panic("Failed to parse JSON");
-            unreachable;
+            log("Failed to parse JSON");
+            return DEFAULT_STATIC_URL;
         }) {
             .string => |str| {
                 if (tokenizer.string_is_object_key) {
@@ -152,7 +155,7 @@ fn extract_string(inputData: []const u8, keyName: []const u8) ?[]const u8 {
                     break str;
                 }
             },
-            .end_of_document => break null,
+            .end_of_document => break DEFAULT_STATIC_URL,
             else => null,
         };
     };
@@ -160,14 +163,14 @@ fn extract_string(inputData: []const u8, keyName: []const u8) ?[]const u8 {
 
 // Update current static content URL in smart contract storage
 // NOTE: This is useful for web4-deploy tool
-export fn web4_setStaticUrl() void {
+pub export fn web4_setStaticUrl() void {
     assertSelfOrOwner();
 
     // Read method arguments blob
     const inputData = readInputAlloc();
 
     // Parse method arguments JSON and extract staticUrl
-    const staticUrl = extract_string(inputData, "staticUrl") orelse DEFAULT_STATIC_URL;
+    const staticUrl = extract_string(inputData, "staticUrl");
 
     // Log updated URL
     log(joinAlloc(.{ "staticUrl: ", staticUrl }));
@@ -178,14 +181,14 @@ export fn web4_setStaticUrl() void {
 
 // Update current owner account ID – if set this account can update contract config
 // NOTE: This is useful to deploy contract to subaccount like web4.<account_id>.near and then transfer ownership to <account_id>.near
-export fn web4_setOwner() void {
+pub export fn web4_setOwner() void {
     assertSelfOrOwner();
 
     // Read method arguments blob
     const inputData = readInputAlloc();
 
     // Parse method arguments JSON and extract owner
-    const owner = extract_string(inputData, "accountId") orelse "";
+    const owner = extract_string(inputData, "accountId");
 
     // Log updated owner
     log(joinAlloc(.{ "owner: ", owner }));
