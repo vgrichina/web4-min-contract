@@ -110,10 +110,7 @@ export fn web4_get() void {
     const inputData = readInputAlloc();
 
     // Parse method arguments JSON and extract path
-    var path = extract_string(inputData, "path");
-    if (std.mem.eql(u8, path, DEFAULT_STATIC_URL)) {
-        path = "/";
-    }
+    const path = extract_string(inputData, "path") orelse "/";
 
     // Log request path
     log(joinAlloc(.{ "path: ", path }));
@@ -139,14 +136,14 @@ export fn web4_get() void {
 
 // Parse method arguments JSON
 // NOTE: Parsing using std.json.Scanner results in smaller binary than deserializing into object
-fn extract_string(inputData: []const u8, keyName: []const u8) []const u8 {
+fn extract_string(inputData: []const u8, keyName: []const u8) ?[]const u8 {
     var lastKey: []const u8 = "";
     var tokenizer = std.json.Scanner.initCompleteInput(allocator, inputData);
     defer tokenizer.deinit();
     return while (true) {
         _ = switch (tokenizer.next() catch {
-            log("Failed to parse JSON");
-            return DEFAULT_STATIC_URL;
+            panic("Failed to parse JSON");
+            unreachable;
         }) {
             .string => |str| {
                 if (tokenizer.string_is_object_key) {
@@ -155,7 +152,7 @@ fn extract_string(inputData: []const u8, keyName: []const u8) []const u8 {
                     break str;
                 }
             },
-            .end_of_document => break DEFAULT_STATIC_URL,
+            .end_of_document => break null,
             else => null,
         };
     };
@@ -170,7 +167,7 @@ export fn web4_setStaticUrl() void {
     const inputData = readInputAlloc();
 
     // Parse method arguments JSON and extract staticUrl
-    const staticUrl = extract_string(inputData, "staticUrl");
+    const staticUrl = extract_string(inputData, "staticUrl") orelse DEFAULT_STATIC_URL;
 
     // Log updated URL
     log(joinAlloc(.{ "staticUrl: ", staticUrl }));
@@ -188,7 +185,7 @@ export fn web4_setOwner() void {
     const inputData = readInputAlloc();
 
     // Parse method arguments JSON and extract owner
-    const owner = extract_string(inputData, "accountId");
+    const owner = extract_string(inputData, "accountId") orelse "";
 
     // Log updated owner
     log(joinAlloc(.{ "owner: ", owner }));
