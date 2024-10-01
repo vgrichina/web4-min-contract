@@ -80,7 +80,7 @@ fn joinAlloc(parts: anytype) []const u8 {
     };
     var offset: usize = 0;
     inline for (parts) |part| {
-        std.mem.copy(u8, result[offset .. offset + part.len], part);
+        @memcpy(result[offset .. offset + part.len], part);
         offset += part.len;
     }
     return result;
@@ -167,7 +167,7 @@ export fn web4_setStaticUrl() void {
     const inputData = readInputAlloc();
 
     // Parse method arguments JSON and extract staticUrl
-    const staticUrl = extract_string(inputData, "staticUrl") orelse DEFAULT_STATIC_URL;
+    const staticUrl = extract_string(inputData, "url") orelse DEFAULT_STATIC_URL;
 
     // Log updated URL
     log(joinAlloc(.{ "staticUrl: ", staticUrl }));
