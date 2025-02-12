@@ -104,6 +104,16 @@ fn assertSelfOrOwner() void {
 // Default URL, contains some instructions on what to do next
 const DEFAULT_STATIC_URL = "ipfs://bafybeidc4lvv4bld66h4rmy2jvgjdrgul5ub5s75vbqrcbjd3jeaqnyd5e";
 
+// Helper function to check if a path has a file extension
+fn hasFileExtension(path: []const u8) bool {
+    var i: usize = path.len;
+    while (i > 0) : (i -= 1) {
+        if (path[i - 1] == '/') return false;
+        if (path[i - 1] == '.') return true;
+    }
+    return false;
+}
+
 // Main entry point for web4 contract.
 export fn web4_get() void {
     // Read method arguments blob
@@ -117,6 +127,10 @@ export fn web4_get() void {
 
     // Read static URL from storage
     const staticUrl = readStorageAlloc(WEB4_STATIC_URL_KEY) orelse DEFAULT_STATIC_URL;
+
+    // For paths without file extensions, serve index.html (SPA)
+    const adjustedPath = if (!hasFileExtension(path) and path.len > 1) "/index.html" else path;
+
     // Construct response object
     const responseData = joinAlloc(.{
         \\{
@@ -125,7 +139,7 @@ export fn web4_get() void {
         ,
         "\"",
         staticUrl,
-        path,
+        adjustedPath,
         "\"",
         \\ }
     });
