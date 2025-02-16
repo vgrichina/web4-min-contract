@@ -144,8 +144,20 @@ test "web4_get uses custom static URL when set" {
     const custom_url = "ipfs://custom123";
     try mock_storage.put(web4.WEB4_STATIC_URL_KEY, custom_url);
 
+    // Verify storage operation worked
+    if (mock_storage.get(web4.WEB4_STATIC_URL_KEY)) |stored_url| {
+        std.debug.print("Stored URL: {s}\n", .{stored_url});
+    } else {
+        std.debug.print("URL not found in storage\n", .{});
+    }
+
     // Set input JSON
     mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/\"}");
+
+    // Print mock_return_value after web4_get
+    defer {
+        std.debug.print("Return value: {s}\n", .{mock_return_value});
+    }
 
     // Call the function
     web4.web4_get();
