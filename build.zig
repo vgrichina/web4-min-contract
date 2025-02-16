@@ -38,10 +38,10 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(web4_lib);
 
-    // Unit tests
+    // Unit tests - use native target for testing
     const unit_tests = b.addTest(.{
         .root_source_file = b.path("web4-min.test.zig"),
-        .target = target,
+        // Use native target for tests, not WASM
         .optimize = optimize,
     });
 
