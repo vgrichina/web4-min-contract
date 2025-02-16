@@ -10,10 +10,10 @@ Install [Zig](https://ziglang.org/learn/getting-started/#installing-zig). Below 
 Then run:
 
 ```bash
-zig build-exe web4-min.zig -target wasm32-freestanding -O ReleaseSmall --export=web4_get --export=web4_setStaticUrl --export=web4_setOwner -fno-entry
+zig build --release=small
 ```
 
-You should get `web4-min.wasm` file.
+You should get `zig-out/bin/web4-min` file.
 
 ## Deploying smart contract
 
