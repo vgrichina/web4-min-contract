@@ -23,6 +23,9 @@ pub fn build(b: *std.Build) void {
         .strip = true,
     });
 
+    // Enable link-time optimization
+    web4_lib.want_lto = true;
+
     // Don't need start function for WASM
     web4_lib.entry = .disabled;
 
