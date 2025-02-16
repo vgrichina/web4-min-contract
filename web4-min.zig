@@ -120,7 +120,7 @@ fn isWeb4Path(path: []const u8) bool {
 }
 
 // Main entry point for web4 contract.
-export fn web4_get() void {
+pub export fn web4_get() void {
     // Read method arguments blob
     const inputData = readInputAlloc();
 
@@ -179,7 +179,7 @@ fn extract_string(inputData: []const u8, keyName: []const u8) ?[]const u8 {
 
 // Update current static content URL in smart contract storage
 // NOTE: This is useful for web4-deploy tool
-export fn web4_setStaticUrl() void {
+pub export fn web4_setStaticUrl() void {
     assertSelfOrOwner();
 
     // Read method arguments blob
@@ -197,7 +197,7 @@ export fn web4_setStaticUrl() void {
 
 // Update current owner account ID – if set this account can update contract config
 // NOTE: This is useful to deploy contract to subaccount like web4.<account_id>.near and then transfer ownership to <account_id>.near
-export fn web4_setOwner() void {
+pub export fn web4_setOwner() void {
     assertSelfOrOwner();
 
     // Read method arguments blob
