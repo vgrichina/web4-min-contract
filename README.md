@@ -22,7 +22,7 @@ Install [near-cli-rs](https://github.com/near/near-cli-rs) first.
 Then run:
 
 ```bash
-near deploy --wasmFile web4-min.wasm --accountId <your-account>.near
+near deploy --wasmFile zig-out/bin/web4-min --accountId <your-account>.near
 ```
 
 See more on [how to deploy NEAR smart contracts](https://docs.near.org/develop/deploy).
