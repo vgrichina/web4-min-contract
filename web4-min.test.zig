@@ -6,12 +6,15 @@ const web4 = @import("web4-min.zig");
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
 
-// Mock NEAR runtime functions for testing
+// Mock state for tests
 var mock_storage: std.StringHashMap([]const u8) = undefined;
 var mock_input: []const u8 = "";
 var mock_register: []const u8 = "";
 var mock_return_value: []const u8 = "";
+var mock_signer: []const u8 = "test.near";
+var mock_current_account: []const u8 = "test.near";
 
+// Mock NEAR runtime functions
 export fn input(_: u64) void {
     mock_register = mock_input;
 }
@@ -31,17 +34,44 @@ export fn value_return(len: u64, ptr: u64) void {
 
 export fn storage_read(key_len: u64, key_ptr: u64, _: u64) u64 {
     const key = @as([*]const u8, @ptrFromInt(key_ptr))[0..key_len];
-    if (mock_storage.get(key)) |_| {
+    if (mock_storage.get(key)) |value| {
+        mock_register = value;
         return 1;
     }
     return 0;
 }
 
+export fn storage_write(key_len: u64, key_ptr: u64, value_len: u64, value_ptr: u64, _: u64) u64 {
+    const key = @as([*]const u8, @ptrFromInt(key_ptr))[0..key_len];
+    const value = @as([*]const u8, @ptrFromInt(value_ptr))[0..value_len];
+    mock_storage.put(key, value) catch return 0;
+    return 1;
+}
+
+export fn log_utf8(_: u64, _: u64) void {
+    // No-op for tests
+}
+
+export fn panic_utf8(_: u64, _: u64) void {
+    // No-op for tests, or could set a flag to check if panic occurred
+}
+
+export fn signer_account_id(_: u64) void {
+    mock_register = mock_signer;
+}
+
+export fn current_account_id(_: u64) void {
+    mock_register = mock_current_account;
+}
+
+// Test setup/cleanup helpers
 fn setupTest() !void {
     mock_storage = std.StringHashMap([]const u8).init(testing.allocator);
     mock_input = "";
     mock_register = "";
     mock_return_value = "";
+    mock_signer = "test.near";
+    mock_current_account = "test.near";
 }
 
 fn cleanupTest() void {
