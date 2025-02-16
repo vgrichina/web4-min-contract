@@ -102,7 +102,7 @@ fn assertSelfOrOwner() void {
 }
 
 // Default URL, contains some instructions on what to do next
-const DEFAULT_STATIC_URL = "ipfs://bafybeidc4lvv4bld66h4rmy2jvgjdrgul5ub5s75vbqrcbjd3jeaqnyd5e";
+pub const DEFAULT_STATIC_URL = "ipfs://bafybeidc4lvv4bld66h4rmy2jvgjdrgul5ub5s75vbqrcbjd3jeaqnyd5e";
 
 // Helper function to check if a path has a file extension
 fn hasFileExtension(path: []const u8) bool {
