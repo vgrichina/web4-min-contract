@@ -8,10 +8,16 @@ const MAX_U64: u64 = 18446744073709551615;
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
 
+fn panic(msg: []const u8) void {
+    std.debug.panic("{s}", .{msg});
+}
+
 // Mock state for tests
 var mock_storage: std.StringHashMap([]const u8) = undefined;
 var mock_registers = std.StringHashMap([]const u8).init(testing.allocator);
 var mock_input: []const u8 = "";
+var mock_register: []const u8 = "";
+var mock_return_value: []const u8 = "";
 var mock_signer: []const u8 = "test.near";
 var mock_current_account: []const u8 = "test.near";
 
@@ -82,6 +88,8 @@ fn setupTest() !void {
     mock_storage = std.StringHashMap([]const u8).init(testing.allocator);
     mock_registers = std.StringHashMap([]const u8).init(testing.allocator);
     mock_input = "";
+    mock_register = "";
+    mock_return_value = "";
     mock_signer = "test.near";
     mock_current_account = "test.near";
 }
