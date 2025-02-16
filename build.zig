@@ -15,18 +15,19 @@ pub fn build(b: *std.Build) void {
     });
 
     // Main WASM artifact
-    const web4_lib = b.addSharedLibrary(.{
+    const web4_lib = b.addExecutable(.{
         .name = "web4-min",
-        .root_source_file = .{ .path = "web4-min.zig" },
+        .root_source_file = b.path("web4-min.zig"),
         .target = target,
         .optimize = optimize,
+        .strip = true,
     });
 
     // Don't need start function for WASM
     web4_lib.entry = .disabled;
 
     // Export the required functions
-    web4_lib.export_symbol_names = &[_][]const u8{
+    web4_lib.root_module.export_symbol_names = &[_][]const u8{
         "web4_get",
         "web4_setStaticUrl",
         "web4_setOwner",
