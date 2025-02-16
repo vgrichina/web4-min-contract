@@ -6,6 +6,9 @@ const web4 = @import("web4-min.zig");
 const NearDebugAllocator = struct {
     inner: std.heap.GeneralPurposeAllocator(.{
         .stack_trace_frames = 10,
+        .enable_memory_limit = false,
+        .never_unmap = true,  // Don't track memory that's "leaked"
+        .retain_metadata = true,  // Keep metadata but don't report leaks
     }),
 
     pub fn init() @This() {
