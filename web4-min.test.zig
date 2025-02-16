@@ -2,29 +2,42 @@ const std = @import("std");
 const testing = std.testing;
 const web4 = @import("web4-min.zig");
 
+const MAX_U64: u64 = 18446744073709551615;
+
 // Mock allocator for tests
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
 
 // Mock state for tests
 var mock_storage: std.StringHashMap([]const u8) = undefined;
+var mock_registers = std.StringHashMap([]const u8).init(testing.allocator);
 var mock_input: []const u8 = "";
-var mock_register: []const u8 = "";
-var mock_return_value: []const u8 = "";
 var mock_signer: []const u8 = "test.near";
 var mock_current_account: []const u8 = "test.near";
 
 // Mock NEAR runtime functions
-export fn input(_: u64) void {
-    mock_register = mock_input;
+export fn input(register_id: u64) void {
+    mock_registers.put(std.fmt.allocPrint(testing.allocator, "{d}", .{register_id}) catch unreachable, mock_input) catch {
+        panic("Failed to store in register");
+    };
 }
 
-export fn read_register(_: u64, _: u64) void {
-    mock_register = mock_register;
+export fn read_register(register_id: u64, ptr: u64) void {
+    const key = std.fmt.allocPrint(testing.allocator, "{d}", .{register_id}) catch unreachable;
+    defer testing.allocator.free(key);
+    if (mock_registers.get(key)) |data| {
+        const dest = @as([*]u8, @ptrFromInt(ptr));
+        @memcpy(dest[0..data.len], data);
+    }
 }
 
-export fn register_len(_: u64) u64 {
-    return mock_register.len;
+export fn register_len(register_id: u64) u64 {
+    const key = std.fmt.allocPrint(testing.allocator, "{d}", .{register_id}) catch unreachable;
+    defer testing.allocator.free(key);
+    if (mock_registers.get(key)) |data| {
+        return data.len;
+    }
+    return MAX_U64; // Match NEAR behavior when register not found
 }
 
 export fn value_return(len: u64, ptr: u64) void {
@@ -67,15 +80,20 @@ export fn current_account_id(_: u64) void {
 // Test setup/cleanup helpers
 fn setupTest() !void {
     mock_storage = std.StringHashMap([]const u8).init(testing.allocator);
+    mock_registers = std.StringHashMap([]const u8).init(testing.allocator);
     mock_input = "";
-    mock_register = "";
-    mock_return_value = "";
     mock_signer = "test.near";
     mock_current_account = "test.near";
 }
 
 fn cleanupTest() void {
     mock_storage.deinit();
+    mock_registers.deinit();
+    // Clear any allocated memory
+    var it = mock_registers.iterator();
+    while (it.next()) |entry| {
+        testing.allocator.free(entry.key_ptr.*);
+    }
 }
 
 test "web4_get returns default URL for new contract" {
