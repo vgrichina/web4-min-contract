@@ -85,25 +85,25 @@ export fn current_account_id(_: u64) void {
 
 // Test setup/cleanup helpers
 fn setupTest() !void {
-    mock_storage = std.StringHashMap([]const u8).init(testing.allocator);
-    mock_registers = std.AutoHashMap(u64, []const u8).init(testing.allocator);
+    mock_storage = std.StringHashMap([]const u8).init(near_allocator.allocator());
+    mock_registers = std.AutoHashMap(u64, []const u8).init(near_allocator.allocator());
     
-    mock_input = try testing.allocator.dupe(u8, "");
-    mock_register = try testing.allocator.dupe(u8, "");
-    mock_return_value = try testing.allocator.dupe(u8, "");
-    mock_signer = try testing.allocator.dupe(u8, "test.near");
-    mock_current_account = try testing.allocator.dupe(u8, "test.near");
+    mock_input = try near_allocator.allocator().dupe(u8, "");
+    mock_register = try near_allocator.allocator().dupe(u8, "");
+    mock_return_value = try near_allocator.allocator().dupe(u8, "");
+    mock_signer = try near_allocator.allocator().dupe(u8, "test.near");
+    mock_current_account = try near_allocator.allocator().dupe(u8, "test.near");
 }
 
 fn cleanupTest() void {
     mock_registers.deinit();
     mock_storage.deinit();
     
-    testing.allocator.free(mock_input);
-    testing.allocator.free(mock_register);
-    testing.allocator.free(mock_return_value);
-    testing.allocator.free(mock_signer);
-    testing.allocator.free(mock_current_account);
+    near_allocator.allocator().free(mock_input);
+    near_allocator.allocator().free(mock_register);
+    near_allocator.allocator().free(mock_return_value);
+    near_allocator.allocator().free(mock_signer);
+    near_allocator.allocator().free(mock_current_account);
 }
 
 test "web4_get returns default URL for new contract" {
@@ -111,7 +111,7 @@ test "web4_get returns default URL for new contract" {
     defer cleanupTest();
 
     // Set input JSON
-    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/\"}");
+    mock_input = try near_allocator.allocator().dupe(u8, "{\"path\": \"/\"}");
 
     // Call the function
     web4.web4_get();
@@ -126,7 +126,7 @@ test "web4_get serves index.html for SPA routes" {
     defer cleanupTest();
 
     // Set input JSON
-    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/about\"}");
+    mock_input = try near_allocator.allocator().dupe(u8, "{\"path\": \"/about\"}");
 
     // Call the function
     web4.web4_get();
