@@ -1,7 +1,10 @@
 const std = @import("std");
 
 // NOTE: In smart contract context don't really have to free memory before execution ends
-var allocator = std.heap.wasm_allocator;
+var allocator = if (std.builtin.target.cpu.arch == .wasm32) 
+    std.heap.wasm_allocator 
+else 
+    std.testing.allocator;
 
 // Import host functions provided by NEAR runtime.
 // See https://github.com/near/near-sdk-rs/blob/3ca87c95788b724646e0247cfd3feaccec069b97/near-sdk/src/environment/env.rs#L116

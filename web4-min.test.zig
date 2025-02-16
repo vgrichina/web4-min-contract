@@ -2,8 +2,9 @@ const std = @import("std");
 const testing = std.testing;
 const web4 = @import("web4-min.zig");
 
-// Use testing allocator instead of wasm allocator
-var test_allocator: std.testing.allocator = undefined;
+// Mock allocator for tests
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+const allocator = gpa.allocator();
 
 // Mock NEAR runtime functions for testing
 var mock_storage: std.StringHashMap([]const u8) = undefined;
