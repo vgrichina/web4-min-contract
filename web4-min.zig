@@ -5,7 +5,7 @@ const builtin = @import("builtin");
 var allocator = if (builtin.cpu.arch == .wasm32) 
     std.heap.wasm_allocator 
 else 
-    std.testing.allocator;
+    std.heap.page_allocator;
 
 // Import host functions provided by NEAR runtime.
 // See https://github.com/near/near-sdk-rs/blob/3ca87c95788b724646e0247cfd3feaccec069b97/near-sdk/src/environment/env.rs#L116
