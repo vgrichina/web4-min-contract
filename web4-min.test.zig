@@ -135,3 +135,66 @@ test "web4_get serves index.html for SPA routes" {
     // Verify response redirects to index.html
     try testing.expect(std.mem.indexOf(u8, mock_return_value, "/index.html") != null);
 }
+
+test "web4_get uses custom static URL when set" {
+    try setupTest();
+    defer cleanupTest();
+
+    // Set custom URL in storage
+    const custom_url = "ipfs://custom123";
+    _ = mock_storage.put(web4.WEB4_STATIC_URL_KEY, custom_url);
+
+    // Set input JSON
+    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/\"}");
+
+    // Call the function
+    web4.web4_get();
+
+    // Verify response uses custom URL
+    try testing.expect(std.mem.indexOf(u8, mock_return_value, custom_url) != null);
+    try testing.expect(std.mem.indexOf(u8, mock_return_value, web4.DEFAULT_STATIC_URL) == null);
+}
+
+test "web4_get handles paths with file extensions directly" {
+    try setupTest();
+    defer cleanupTest();
+
+    // Set input JSON
+    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/style.css\"}");
+
+    // Call the function
+    web4.web4_get();
+
+    // Verify response doesn't redirect to index.html
+    try testing.expect(std.mem.indexOf(u8, mock_return_value, "/index.html") == null);
+    try testing.expect(std.mem.indexOf(u8, mock_return_value, "/style.css") != null);
+}
+
+test "web4_get handles web4 paths directly" {
+    try setupTest();
+    defer cleanupTest();
+
+    // Set input JSON
+    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/web4/settings\"}");
+
+    // Call the function
+    web4.web4_get();
+
+    // Verify response doesn't redirect to index.html
+    try testing.expect(std.mem.indexOf(u8, mock_return_value, "/index.html") == null);
+    try testing.expect(std.mem.indexOf(u8, mock_return_value, "/web4/settings") != null);
+}
+
+test "web4_get handles invalid JSON input" {
+    try setupTest();
+    defer cleanupTest();
+
+    // Set invalid JSON input
+    mock_input = try testing.allocator.dupe(u8, "{invalid json}");
+
+    // Call the function
+    web4.web4_get();
+
+    // Should use default path "/"
+    try testing.expect(std.mem.indexOf(u8, mock_return_value, web4.DEFAULT_STATIC_URL) != null);
+}
