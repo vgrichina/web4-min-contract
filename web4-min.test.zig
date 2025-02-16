@@ -2,36 +2,6 @@ const std = @import("std");
 const testing = std.testing;
 const web4 = @import("web4-min.zig");
 
-// Create debug allocator that keeps safety checks but ignores leaks
-const NearDebugAllocator = struct {
-    inner: std.heap.GeneralPurposeAllocator(.{
-        .stack_trace_frames = 10,
-        .enable_memory_limit = false,
-        .never_unmap = true,  // Don't track memory that's "leaked"
-        .retain_metadata = true,  // Keep metadata but don't report leaks
-    }),
-
-    pub fn init() @This() {
-        return .{
-            .inner = .{
-                .backing_allocator = std.heap.page_allocator,
-            },
-        };
-    }
-
-    pub fn allocator(self: *@This()) std.mem.Allocator {
-        return self.inner.allocator();
-    }
-
-    pub fn deinit(self: *@This()) std.heap.Check {
-        // Run normal deinit but ignore leaks
-        _ = self.inner.deinit();
-        return .ok;
-    }
-};
-
-// Initialize our test allocator
-var near_allocator = NearDebugAllocator.init();
 
 const MAX_U64: u64 = 18446744073709551615;
 
@@ -116,14 +86,14 @@ export fn current_account_id(_: u64) void {
 
 // Test setup/cleanup helpers
 fn setupTest() !void {
-    mock_storage = std.StringHashMap([]const u8).init(near_allocator.allocator());
-    mock_registers = std.AutoHashMap(u64, []const u8).init(near_allocator.allocator());
+    mock_storage = std.StringHashMap([]const u8).init(testing.allocator);
+    mock_registers = std.AutoHashMap(u64, []const u8).init(testing.allocator);
     
-    mock_input = try near_allocator.allocator().dupe(u8, "");
-    mock_register = try near_allocator.allocator().dupe(u8, "");
-    mock_return_value = try near_allocator.allocator().dupe(u8, "");
-    mock_signer = try near_allocator.allocator().dupe(u8, "test.near");
-    mock_current_account = try near_allocator.allocator().dupe(u8, "test.near");
+    mock_input = try testing.allocator.dupe(u8, "");
+    mock_register = try testing.allocator.dupe(u8, "");
+    mock_return_value = try testing.allocator.dupe(u8, "");
+    mock_signer = try testing.allocator.dupe(u8, "test.near");
+    mock_current_account = try testing.allocator.dupe(u8, "test.near");
 }
 
 fn cleanupTest() void {
