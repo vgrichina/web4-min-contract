@@ -14,7 +14,7 @@ fn panic(msg: []const u8) void {
 
 // Mock state for tests
 var mock_storage: std.StringHashMap([]const u8) = undefined;
-var mock_registers = std.StringHashMap([]const u8).init(testing.allocator);
+var mock_registers: std.StringHashMap([]const u8) = undefined;
 var mock_input: []const u8 = "";
 var mock_register: []const u8 = "";
 var mock_return_value: []const u8 = "";
