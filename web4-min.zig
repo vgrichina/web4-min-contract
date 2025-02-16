@@ -23,8 +23,8 @@ extern fn storage_read(key_len: u64, key_ptr: u64, register_id: u64) u64;
 extern fn storage_write(key_len: u64, key_ptr: u64, value_len: u64, value_ptr: u64, register_id: u64) u64;
 
 const SCRATCH_REGISTER = 0xffffffff;
-const WEB4_STATIC_URL_KEY = "web4:staticUrl";
-const WEB4_OWNER_KEY = "web4:owner";
+pub const WEB4_STATIC_URL_KEY = "web4:staticUrl";
+pub const WEB4_OWNER_KEY = "web4:owner";
 
 // Helper wrapper functions for interacting with the host
 fn log(str: []const u8) void {
