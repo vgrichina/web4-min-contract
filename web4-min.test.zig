@@ -108,7 +108,6 @@ test "web4_get returns default URL for new contract" {
 
     // Set input JSON
     mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/\"}");
-    ;
 
     // Call the function
     web4.web4_get();
@@ -124,7 +123,6 @@ test "web4_get serves index.html for SPA routes" {
 
     // Set input JSON
     mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/about\"}");
-    ;
 
     // Call the function
     web4.web4_get();
