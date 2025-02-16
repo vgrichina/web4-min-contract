@@ -4,43 +4,35 @@ const web4 = @import("web4-min.zig");
 
 const MAX_U64: u64 = 18446744073709551615;
 
-// Mock allocator for tests
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-const allocator = gpa.allocator();
-
 fn panic(msg: []const u8) void {
     std.debug.panic("{s}", .{msg});
 }
 
 // Mock state for tests
 var mock_storage: std.StringHashMap([]const u8) = undefined;
-var mock_registers: std.StringHashMap([]const u8) = undefined;
-var mock_input: []const u8 = "";
-var mock_register: []const u8 = "";
-var mock_return_value: []const u8 = "";
-var mock_signer: []const u8 = "test.near";
-var mock_current_account: []const u8 = "test.near";
+var mock_registers: std.AutoHashMap(u64, []const u8) = undefined;
+var mock_input: []u8 = "";
+var mock_register: []u8 = "";
+var mock_return_value: []u8 = "";
+var mock_signer: []u8 = undefined;
+var mock_current_account: []u8 = undefined;
 
 // Mock NEAR runtime functions
 export fn input(register_id: u64) void {
-    mock_registers.put(std.fmt.allocPrint(testing.allocator, "{d}", .{register_id}) catch unreachable, mock_input) catch {
+    mock_registers.put(register_id, mock_input) catch {
         panic("Failed to store in register");
     };
 }
 
 export fn read_register(register_id: u64, ptr: u64) void {
-    const key = std.fmt.allocPrint(testing.allocator, "{d}", .{register_id}) catch unreachable;
-    defer testing.allocator.free(key);
-    if (mock_registers.get(key)) |data| {
+    if (mock_registers.get(register_id)) |data| {
         const dest = @as([*]u8, @ptrFromInt(ptr));
         @memcpy(dest[0..data.len], data);
     }
 }
 
 export fn register_len(register_id: u64) u64 {
-    const key = std.fmt.allocPrint(testing.allocator, "{d}", .{register_id}) catch unreachable;
-    defer testing.allocator.free(key);
-    if (mock_registers.get(key)) |data| {
+    if (mock_registers.get(register_id)) |data| {
         return data.len;
     }
     return MAX_U64; // Match NEAR behavior when register not found
