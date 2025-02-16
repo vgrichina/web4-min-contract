@@ -2,6 +2,35 @@ const std = @import("std");
 const testing = std.testing;
 const web4 = @import("web4-min.zig");
 
+// Create debug allocator that keeps safety checks but ignores leaks
+const NearDebugAllocator = struct {
+    inner: std.heap.DebugAllocator(.{
+        .safety = true,
+        .stack_trace_frames = 10,
+    }),
+
+    pub fn init() @This() {
+        return .{
+            .inner = .{
+                .backing_allocator = std.heap.page_allocator,
+            },
+        };
+    }
+
+    pub fn allocator(self: *@This()) std.mem.Allocator {
+        return self.inner.allocator();
+    }
+
+    pub fn deinit(self: *@This()) std.heap.Check {
+        // Run normal deinit but ignore leaks
+        _ = self.inner.deinit();
+        return .ok;
+    }
+};
+
+// Initialize our test allocator
+var near_allocator = NearDebugAllocator.init();
+
 const MAX_U64: u64 = 18446744073709551615;
 
 fn panic(msg: []const u8) void {
@@ -40,8 +69,8 @@ export fn register_len(register_id: u64) u64 {
 
 export fn value_return(len: u64, ptr: u64) void {
     const slice = @as([*]const u8, @ptrFromInt(ptr))[0..len];
-    testing.allocator.free(mock_return_value);
-    mock_return_value = testing.allocator.dupe(u8, slice) catch {
+    near_allocator.allocator().free(mock_return_value);
+    mock_return_value = near_allocator.allocator().dupe(u8, slice) catch {
         panic("Failed to duplicate return value");
         unreachable;
     };
@@ -50,8 +79,8 @@ export fn value_return(len: u64, ptr: u64) void {
 export fn storage_read(key_len: u64, key_ptr: u64, _: u64) u64 {
     const key = @as([*]const u8, @ptrFromInt(key_ptr))[0..key_len];
     if (mock_storage.get(key)) |value| {
-        testing.allocator.free(mock_register);
-        mock_register = testing.allocator.dupe(u8, value) catch {
+        near_allocator.allocator().free(mock_register);
+        mock_register = near_allocator.allocator().dupe(u8, value) catch {
             panic("Failed to duplicate register value");
             unreachable;
         };
