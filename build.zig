@@ -1,0 +1,36 @@
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    // Standard target options
+    const target = b.standardTargetOptions(.{
+        .default_target = .{
+            .cpu_arch = .wasm32,
+            .os_tag = .freestanding,
+        },
+    });
+
+    // Standard optimization options
+    const optimize = b.standardOptimizeOption(.{
+        .preferred_optimize_mode = .ReleaseSmall,
+    });
+
+    // Main WASM artifact
+    const web4_lib = b.addSharedLibrary(.{
+        .name = "web4-min",
+        .root_source_file = .{ .path = "web4-min.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Don't need start function for WASM
+    web4_lib.entry = .disabled;
+
+    // Export the required functions
+    web4_lib.export_symbol_names = &[_][]const u8{
+        "web4_get",
+        "web4_setStaticUrl",
+        "web4_setOwner",
+    };
+
+    b.installArtifact(web4_lib);
+}
