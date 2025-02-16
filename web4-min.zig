@@ -1,7 +1,8 @@
 const std = @import("std");
 
 // NOTE: In smart contract context don't really have to free memory before execution ends
-var allocator = if (std.builtin.target.cpu.arch == .wasm32) 
+const builtin = @import("builtin");
+var allocator = if (builtin.cpu.arch == .wasm32) 
     std.heap.wasm_allocator 
 else 
     std.testing.allocator;
