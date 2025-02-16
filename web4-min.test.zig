@@ -71,8 +71,8 @@ export fn register_len(register_id: u64) u64 {
 
 export fn value_return(len: u64, ptr: u64) void {
     const slice = @as([*]const u8, @ptrFromInt(ptr))[0..len];
-    near_allocator.allocator().free(mock_return_value);
-    mock_return_value = near_allocator.allocator().dupe(u8, slice) catch {
+    testing.allocator.free(mock_return_value);
+    mock_return_value = testing.allocator.dupe(u8, slice) catch {
         panic("Failed to duplicate return value");
         unreachable;
     };
@@ -81,8 +81,8 @@ export fn value_return(len: u64, ptr: u64) void {
 export fn storage_read(key_len: u64, key_ptr: u64, _: u64) u64 {
     const key = @as([*]const u8, @ptrFromInt(key_ptr))[0..key_len];
     if (mock_storage.get(key)) |value| {
-        near_allocator.allocator().free(mock_register);
-        mock_register = near_allocator.allocator().dupe(u8, value) catch {
+        testing.allocator.free(mock_register);
+        mock_register = testing.allocator.dupe(u8, value) catch {
             panic("Failed to duplicate register value");
             unreachable;
         };
@@ -130,11 +130,11 @@ fn cleanupTest() void {
     mock_registers.deinit();
     mock_storage.deinit();
     
-    near_allocator.allocator().free(mock_input);
-    near_allocator.allocator().free(mock_register);
-    near_allocator.allocator().free(mock_return_value);
-    near_allocator.allocator().free(mock_signer);
-    near_allocator.allocator().free(mock_current_account);
+    testing.allocator.free(mock_input);
+    testing.allocator.free(mock_register);
+    testing.allocator.free(mock_return_value);
+    testing.allocator.free(mock_signer);
+    testing.allocator.free(mock_current_account);
 }
 
 test "web4_get returns default URL for new contract" {
@@ -142,7 +142,7 @@ test "web4_get returns default URL for new contract" {
     defer cleanupTest();
 
     // Set input JSON
-    mock_input = try near_allocator.allocator().dupe(u8, "{\"path\": \"/\"}");
+    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/\"}");
 
     // Call the function
     web4.web4_get();
@@ -157,7 +157,7 @@ test "web4_get serves index.html for SPA routes" {
     defer cleanupTest();
 
     // Set input JSON
-    mock_input = try near_allocator.allocator().dupe(u8, "{\"path\": \"/about\"}");
+    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/about\"}");
 
     // Call the function
     web4.web4_get();
