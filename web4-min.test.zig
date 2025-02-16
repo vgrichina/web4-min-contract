@@ -40,13 +40,17 @@ export fn register_len(register_id: u64) u64 {
 
 export fn value_return(len: u64, ptr: u64) void {
     const slice = @as([*]const u8, @ptrFromInt(ptr))[0..len];
-    mock_return_value = slice;
+    mock_return_value = testing.allocator.dupe(u8, slice) catch {
+        panic("Failed to duplicate return value");
+    };
 }
 
 export fn storage_read(key_len: u64, key_ptr: u64, _: u64) u64 {
     const key = @as([*]const u8, @ptrFromInt(key_ptr))[0..key_len];
     if (mock_storage.get(key)) |value| {
-        mock_register = value;
+        mock_register = testing.allocator.dupe(u8, value) catch {
+            panic("Failed to duplicate register value");
+        };
         return 1;
     }
     return 0;
@@ -103,7 +107,7 @@ test "web4_get returns default URL for new contract" {
     defer cleanupTest();
 
     // Set input JSON
-    mock_input = \\{"path": "/"}
+    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/\"}");
     ;
 
     // Call the function
@@ -119,7 +123,7 @@ test "web4_get serves index.html for SPA routes" {
     defer cleanupTest();
 
     // Set input JSON
-    mock_input = \\{"path": "/about"}
+    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/about\"}");
     ;
 
     // Call the function
