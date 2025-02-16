@@ -142,7 +142,7 @@ test "web4_get uses custom static URL when set" {
 
     // Set custom URL in storage
     const custom_url = "ipfs://custom123";
-    _ = mock_storage.put(web4.WEB4_STATIC_URL_KEY, custom_url);
+    try mock_storage.put(web4.WEB4_STATIC_URL_KEY, custom_url);
 
     // Set input JSON
     mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/\"}");
