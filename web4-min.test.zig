@@ -4,8 +4,7 @@ const web4 = @import("web4-min.zig");
 
 // Create debug allocator that keeps safety checks but ignores leaks
 const NearDebugAllocator = struct {
-    inner: std.heap.DebugAllocator(.{
-        .safety = true,
+    inner: std.heap.GeneralPurposeAllocator(.{
         .stack_trace_frames = 10,
     }),
 
