@@ -78,22 +78,24 @@ export fn current_account_id(_: u64) void {
 // Test setup/cleanup helpers
 fn setupTest() !void {
     mock_storage = std.StringHashMap([]const u8).init(testing.allocator);
-    mock_registers = std.StringHashMap([]const u8).init(testing.allocator);
-    mock_input = "";
-    mock_register = "";
-    mock_return_value = "";
-    mock_signer = "test.near";
-    mock_current_account = "test.near";
+    mock_registers = std.AutoHashMap(u64, []const u8).init(testing.allocator);
+    
+    mock_input = try testing.allocator.dupe(u8, "");
+    mock_register = try testing.allocator.dupe(u8, "");
+    mock_return_value = try testing.allocator.dupe(u8, "");
+    mock_signer = try testing.allocator.dupe(u8, "test.near");
+    mock_current_account = try testing.allocator.dupe(u8, "test.near");
 }
 
 fn cleanupTest() void {
-    mock_storage.deinit();
     mock_registers.deinit();
-    // Clear any allocated memory
-    var it = mock_registers.iterator();
-    while (it.next()) |entry| {
-        testing.allocator.free(entry.key_ptr.*);
-    }
+    mock_storage.deinit();
+    
+    testing.allocator.free(mock_input);
+    testing.allocator.free(mock_register);
+    testing.allocator.free(mock_return_value);
+    testing.allocator.free(mock_signer);
+    testing.allocator.free(mock_current_account);
 }
 
 test "web4_get returns default URL for new contract" {
