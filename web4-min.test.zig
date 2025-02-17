@@ -70,20 +70,20 @@ fn updateCurrentAccount(new_account: []const u8) !void {
 
 // Mock NEAR runtime functions
 export fn input(register_id: u64) void {
-    mock_registers.put(register_id, mock_input) catch {
+    ctx.registers.put(register_id, ctx.input) catch {
         panic("Failed to store in register");
     };
 }
 
 export fn read_register(register_id: u64, ptr: u64) void {
-    if (mock_registers.get(register_id)) |data| {
+    if (ctx.registers.get(register_id)) |data| {
         const dest = @as([*]u8, @ptrFromInt(ptr));
         @memcpy(dest[0..data.len], data);
     }
 }
 
 export fn register_len(register_id: u64) u64 {
-    if (mock_registers.get(register_id)) |data| {
+    if (ctx.registers.get(register_id)) |data| {
         return data.len;
     }
     return MAX_U64; // Match NEAR behavior when register not found
@@ -91,8 +91,8 @@ export fn register_len(register_id: u64) u64 {
 
 export fn value_return(len: u64, ptr: u64) void {
     const slice = @as([*]const u8, @ptrFromInt(ptr))[0..len];
-    testing.allocator.free(mock_return_value);
-    mock_return_value = testing.allocator.dupe(u8, slice) catch {
+    testing.allocator.free(ctx.return_value);
+    ctx.return_value = testing.allocator.dupe(u8, slice) catch {
         panic("Failed to duplicate return value");
         unreachable;
     };
@@ -100,8 +100,8 @@ export fn value_return(len: u64, ptr: u64) void {
 
 export fn storage_read(key_len: u64, key_ptr: u64, register_id: u64) u64 {
     const key = @as([*]const u8, @ptrFromInt(key_ptr))[0..key_len];
-    if (mock_storage.get(key)) |value| {
-        mock_registers.put(register_id, value) catch {
+    if (ctx.storage.get(key)) |value| {
+        ctx.registers.put(register_id, value) catch {
             panic("Failed to store in register");
         };
         return 1;
@@ -112,7 +112,7 @@ export fn storage_read(key_len: u64, key_ptr: u64, register_id: u64) u64 {
 export fn storage_write(key_len: u64, key_ptr: u64, value_len: u64, value_ptr: u64, _: u64) u64 {
     const key = @as([*]const u8, @ptrFromInt(key_ptr))[0..key_len];
     const value = @as([*]const u8, @ptrFromInt(value_ptr))[0..value_len];
-    mock_storage.put(key, value) catch return 0;
+    ctx.storage.put(key, value) catch return 0;
     return 1;
 }
 
@@ -126,13 +126,13 @@ export fn panic_utf8(_: u64, _: u64) void {
 }
 
 export fn signer_account_id(register_id: u64) void {
-    mock_registers.put(register_id, mock_signer) catch {
+    ctx.registers.put(register_id, ctx.signer) catch {
         panic("Failed to store in register");
     };
 }
 
 export fn current_account_id(register_id: u64) void {
-    mock_registers.put(register_id, mock_current_account) catch {
+    ctx.registers.put(register_id, ctx.current_account) catch {
         panic("Failed to store in register");
     };
 }
