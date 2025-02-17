@@ -40,3 +40,24 @@ npx web4-deploy path/to/your/website <your-account>.near
 `web4-deploy` will upload your website to IPFS and then call `web4_setStaticUrl` method in this smart contract to set IPFS hash of your website.
 
 Then you can access your website using `https://<your-account>.near.page` Web4 gateway.
+
+## Contract Functions
+
+- `web4_get`: Serves static content from IPFS, with SPA support (redirects to index.html)
+- `web4_setStaticUrl`: Updates the IPFS URL for static content
+- `web4_setOwner`: Updates the contract owner account
+
+## Access Control
+
+The contract can be managed by:
+- The contract account itself
+- An owner account (if set via web4_setOwner)
+
+## Development
+
+Run tests:
+```bash
+zig build test
+```
+
+Note: The contract is designed for NEAR's ephemeral runtime environment where memory is automatically freed after execution.
