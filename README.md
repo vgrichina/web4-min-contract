@@ -47,11 +47,32 @@ Then you can access your website using `https://<your-account>.near.page` Web4 g
 - `web4_setStaticUrl`: Updates the IPFS URL for static content
 - `web4_setOwner`: Updates the contract owner account
 
+## SPA Support
+The contract automatically redirects paths without file extensions to `index.html`, making it suitable for Single Page Applications (SPAs). For example:
+- `/about` -> serves `/index.html`
+- `/style.css` -> serves directly
+
+## Storage
+The contract uses two storage keys:
+- `web4:staticUrl` - IPFS URL for static content
+- `web4:owner` - Optional owner account that can manage the contract
+
+## Default Content
+When no static URL is set, the contract serves content from:
+```ipfs://bafybeidc4lvv4bld66h4rmy2jvgjdrgul5ub5s75vbqrcbjd3jeaqnyd5e```
+This contains instructions for getting started.
+
 ## Access Control
 
 The contract can be managed by:
 - The contract account itself
 - An owner account (if set via web4_setOwner)
+
+## Memory Management
+The contract is optimized for NEAR's ephemeral runtime environment:
+- Memory is automatically freed after each contract call
+- No explicit memory management is needed
+- Built with `-O ReleaseSmall` for minimal contract size
 
 ## Development
 
