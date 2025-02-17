@@ -131,17 +131,11 @@ pub export fn web4_get() void {
     // Parse method arguments JSON and extract path
     const path = extract_string(inputData, "path") orelse "/";
 
-    // Log request path
-    log(joinAlloc(.{ "path: ", path }));
-
     // Read static URL from storage
     const staticUrl = readStorageAlloc(WEB4_STATIC_URL_KEY) orelse DEFAULT_STATIC_URL;
 
     // For paths without file extensions and not web4 paths, serve index.html (SPA)
     const adjustedPath = if (!hasFileExtension(path) and path.len > 1 and !isWeb4Path(path)) "/index.html" else path;
-
-    // Log adjusted path
-    log(joinAlloc(.{ "adjusted path: ", adjustedPath }));
 
     // Construct response object
     const responseData = joinAlloc(.{
