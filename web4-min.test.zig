@@ -18,6 +18,16 @@ var mock_return_value: []u8 = "";
 var mock_signer: []u8 = undefined;
 var mock_current_account: []u8 = undefined;
 
+fn updateSigner(new_signer: []const u8) !void {
+    testing.allocator.free(mock_signer);
+    mock_signer = try testing.allocator.dupe(u8, new_signer);
+}
+
+fn updateCurrentAccount(new_account: []const u8) !void {
+    testing.allocator.free(mock_current_account);
+    mock_current_account = try testing.allocator.dupe(u8, new_account);
+}
+
 // Mock NEAR runtime functions
 export fn input(register_id: u64) void {
     mock_registers.put(register_id, mock_input) catch {
@@ -205,8 +215,8 @@ test "access control - contract can update its own config" {
     defer cleanupTest();
 
     // Setup: signer = contract account
-    mock_signer = try testing.allocator.dupe(u8, "test.near");
-    mock_current_account = try testing.allocator.dupe(u8, "test.near");
+    try updateSigner("test.near");
+    try updateCurrentAccount("test.near");
 
     // Test setStaticUrl
     const new_url = "ipfs://newurl123";
@@ -244,8 +254,8 @@ test "access control - owner can update contract config" {
     try mock_storage.put(web4.WEB4_OWNER_KEY, initial_owner);
     
     // Setup: signer = owner account
-    mock_signer = try testing.allocator.dupe(u8, initial_owner);
-    mock_current_account = try testing.allocator.dupe(u8, "contract.near");
+    try updateSigner(initial_owner);
+    try updateCurrentAccount("contract.near");
 
     // Test setStaticUrl
     const new_url = "ipfs://ownerurl";
