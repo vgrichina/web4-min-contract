@@ -10,10 +10,10 @@ Install [Zig](https://ziglang.org/learn/getting-started/#installing-zig). Below 
 Then run:
 
 ```bash
-zig build-exe web4-min.zig -target wasm32-freestanding -O ReleaseSmall --export=web4_get --export=web4_setStaticUrl --export=web4_setOwner -fno-entry
+zig build --release=small
 ```
 
-You should get `web4-min.wasm` file.
+You should get `zig-out/bin/web4-min` file.
 
 ## Deploying smart contract
 
@@ -22,7 +22,7 @@ Install [near-cli-rs](https://github.com/near/near-cli-rs) first.
 Then run:
 
 ```bash
-near deploy --wasmFile web4-min.wasm --accountId <your-account>.near
+near deploy --wasmFile zig-out/bin/web4-min --accountId <your-account>.near
 ```
 
 See more on [how to deploy NEAR smart contracts](https://docs.near.org/develop/deploy).
@@ -40,3 +40,24 @@ npx web4-deploy path/to/your/website <your-account>.near
 `web4-deploy` will upload your website to IPFS and then call `web4_setStaticUrl` method in this smart contract to set IPFS hash of your website.
 
 Then you can access your website using `https://<your-account>.near.page` Web4 gateway.
+
+## Contract Functions
+
+- `web4_get`: Serves static content from IPFS, with SPA support (redirects to index.html)
+- `web4_setStaticUrl`: Updates the IPFS URL for static content
+- `web4_setOwner`: Updates the contract owner account
+
+## Access Control
+
+The contract can be managed by:
+- The contract account itself
+- An owner account (if set via web4_setOwner)
+
+## Development
+
+Run tests:
+```bash
+zig build test
+```
+
+Note: The contract is designed for NEAR's ephemeral runtime environment where memory is automatically freed after execution.

@@ -1,7 +1,11 @@
 const std = @import("std");
 
 // NOTE: In smart contract context don't really have to free memory before execution ends
-var allocator = std.heap.wasm_allocator;
+const builtin = @import("builtin");
+var allocator = if (builtin.cpu.arch == .wasm32) 
+    std.heap.wasm_allocator 
+else 
+    std.heap.page_allocator;
 
 // Import host functions provided by NEAR runtime.
 // See https://github.com/near/near-sdk-rs/blob/3ca87c95788b724646e0247cfd3feaccec069b97/near-sdk/src/environment/env.rs#L116
@@ -19,8 +23,8 @@ extern fn storage_read(key_len: u64, key_ptr: u64, register_id: u64) u64;
 extern fn storage_write(key_len: u64, key_ptr: u64, value_len: u64, value_ptr: u64, register_id: u64) u64;
 
 const SCRATCH_REGISTER = 0xffffffff;
-const WEB4_STATIC_URL_KEY = "web4:staticUrl";
-const WEB4_OWNER_KEY = "web4:owner";
+pub const WEB4_STATIC_URL_KEY = "web4:staticUrl";
+pub const WEB4_OWNER_KEY = "web4:owner";
 
 // Helper wrapper functions for interacting with the host
 fn log(str: []const u8) void {
@@ -102,7 +106,7 @@ fn assertSelfOrOwner() void {
 }
 
 // Default URL, contains some instructions on what to do next
-const DEFAULT_STATIC_URL = "ipfs://bafybeidc4lvv4bld66h4rmy2jvgjdrgul5ub5s75vbqrcbjd3jeaqnyd5e";
+pub const DEFAULT_STATIC_URL = "ipfs://bafybeidc4lvv4bld66h4rmy2jvgjdrgul5ub5s75vbqrcbjd3jeaqnyd5e";
 
 // Helper function to check if a path has a file extension
 fn hasFileExtension(path: []const u8) bool {
@@ -114,39 +118,27 @@ fn hasFileExtension(path: []const u8) bool {
     return false;
 }
 
-// Helper function to check if a path starts with /web4
-fn isWeb4Path(path: []const u8) bool {
-    return std.mem.startsWith(u8, path, "/web4");
-}
 
 // Main entry point for web4 contract.
-export fn web4_get() void {
+pub export fn web4_get() void {
     // Read method arguments blob
     const inputData = readInputAlloc();
 
     // Parse method arguments JSON and extract path
     const path = extract_string(inputData, "path") orelse "/";
 
-    // Log request path
-    log(joinAlloc(.{ "path: ", path }));
-
     // Read static URL from storage
     const staticUrl = readStorageAlloc(WEB4_STATIC_URL_KEY) orelse DEFAULT_STATIC_URL;
 
-    // For paths without file extensions and not web4 paths, serve index.html (SPA)
-    const adjustedPath = if (!hasFileExtension(path) and path.len > 1 and !isWeb4Path(path)) "/index.html" else path;
+    // For paths without file extensions, serve index.html (SPA)
+    const adjustedPath = if (!hasFileExtension(path) and path.len > 1) "/index.html" else path;
 
     // Construct response object
     const responseData = joinAlloc(.{
-        \\{
-        \\  "status": 200,
-        \\  "bodyUrl":
-        ,
-        "\"",
+        "{\"status\":200,\"bodyUrl\":\"",
         staticUrl,
         adjustedPath,
-        "\"",
-        \\ }
+        "\"}",
     });
 
     // Return method result
@@ -179,7 +171,7 @@ fn extract_string(inputData: []const u8, keyName: []const u8) ?[]const u8 {
 
 // Update current static content URL in smart contract storage
 // NOTE: This is useful for web4-deploy tool
-export fn web4_setStaticUrl() void {
+pub export fn web4_setStaticUrl() void {
     assertSelfOrOwner();
 
     // Read method arguments blob
@@ -197,7 +189,7 @@ export fn web4_setStaticUrl() void {
 
 // Update current owner account ID – if set this account can update contract config
 // NOTE: This is useful to deploy contract to subaccount like web4.<account_id>.near and then transfer ownership to <account_id>.near
-export fn web4_setOwner() void {
+pub export fn web4_setOwner() void {
     assertSelfOrOwner();
 
     // Read method arguments blob
