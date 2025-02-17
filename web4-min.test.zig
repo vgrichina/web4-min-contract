@@ -2,21 +2,61 @@ const std = @import("std");
 const testing = std.testing;
 const web4 = @import("web4-min.zig");
 
-
 const MAX_U64: u64 = 18446744073709551615;
 
 fn panic(msg: []const u8) void {
     std.debug.panic("{s}", .{msg});
 }
 
+const TestContext = struct {
+    storage: std.StringHashMap([]const u8),
+    registers: std.AutoHashMap(u64, []const u8),
+    input: []u8,
+    register: []u8,
+    return_value: []u8,
+    signer: []u8,
+    current_account: []u8,
+
+    pub fn init() !TestContext {
+        return TestContext{
+            .storage = std.StringHashMap([]const u8).init(testing.allocator),
+            .registers = std.AutoHashMap(u64, []const u8).init(testing.allocator),
+            .input = try testing.allocator.dupe(u8, ""),
+            .register = try testing.allocator.dupe(u8, ""),
+            .return_value = try testing.allocator.dupe(u8, ""),
+            .signer = try testing.allocator.dupe(u8, "test.near"),
+            .current_account = try testing.allocator.dupe(u8, "test.near"),
+        };
+    }
+
+    pub fn deinit(self: *TestContext) void {
+        self.storage.deinit();
+        self.registers.deinit();
+        testing.allocator.free(self.input);
+        testing.allocator.free(self.register);
+        testing.allocator.free(self.return_value);
+        testing.allocator.free(self.signer);
+        testing.allocator.free(self.current_account);
+    }
+
+    pub fn setInput(self: *TestContext, new_input: []const u8) !void {
+        testing.allocator.free(self.input);
+        self.input = try testing.allocator.dupe(u8, new_input);
+    }
+
+    pub fn setSigner(self: *TestContext, new_signer: []const u8) !void {
+        testing.allocator.free(self.signer);
+        self.signer = try testing.allocator.dupe(u8, new_signer);
+    }
+
+    pub fn setCurrentAccount(self: *TestContext, new_account: []const u8) !void {
+        testing.allocator.free(self.current_account);
+        self.current_account = try testing.allocator.dupe(u8, new_account);
+    }
+};
+
 // Mock state for tests
-var mock_storage: std.StringHashMap([]const u8) = undefined;
-var mock_registers: std.AutoHashMap(u64, []const u8) = undefined;
-var mock_input: []u8 = "";
-var mock_register: []u8 = "";
-var mock_return_value: []u8 = "";
-var mock_signer: []u8 = undefined;
-var mock_current_account: []u8 = undefined;
+var ctx: TestContext = undefined;
 
 fn updateSigner(new_signer: []const u8) !void {
     testing.allocator.free(mock_signer);
