@@ -40,7 +40,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: web4-min
-        path: zig-out/bin/web4-min
+        path: zig-out/bin/web4-min.wasm
 
   publish:
     needs: build
@@ -54,4 +54,4 @@ jobs:
     - name: Upload to release
       uses: softprops/action-gh-release@v1
       with:
-        files: web4-min
+        files: web4-min.wasm

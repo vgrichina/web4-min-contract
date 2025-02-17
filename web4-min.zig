@@ -127,6 +127,9 @@ pub export fn web4_get() void {
     // Parse method arguments JSON and extract path
     const path = extract_string(inputData, "path") orelse "/";
 
+    // Log request path
+    log(joinAlloc(.{ "path: ", path }));
+
     // Read static URL from storage
     const staticUrl = readStorageAlloc(WEB4_STATIC_URL_KEY) orelse DEFAULT_STATIC_URL;
 
