@@ -144,17 +144,15 @@ pub export fn web4_get() void {
     // For paths without file extensions and not web4 paths, serve index.html (SPA)
     const adjustedPath = if (!hasFileExtension(path) and path.len > 1 and !isWeb4Path(path)) "/index.html" else path;
 
+    // Log adjusted path
+    log(joinAlloc(.{ "adjusted path: ", adjustedPath }));
+
     // Construct response object
     const responseData = joinAlloc(.{
-        \\{
-        \\  "status": 200,
-        \\  "bodyUrl":
-        ,
-        "\"",
+        "{\"status\":200,\"bodyUrl\":\"",
         staticUrl,
         adjustedPath,
-        "\"",
-        \\ }
+        "\"}",
     });
 
     // Return method result
