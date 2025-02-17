@@ -196,6 +196,97 @@ test "web4_get handles web4 paths directly" {
     try testing.expect(std.mem.indexOf(u8, mock_return_value, "/web4/settings") != null);
 }
 
+test "access control - contract can update its own config" {
+    try setupTest();
+    defer cleanupTest();
+
+    // Setup: signer = contract account
+    mock_signer = try testing.allocator.dupe(u8, "test.near");
+    mock_current_account = try testing.allocator.dupe(u8, "test.near");
+
+    // Test setStaticUrl
+    const new_url = "ipfs://newurl123";
+    mock_input = try testing.allocator.dupe(u8, "{\"url\": \"" ++ new_url ++ "\"}");
+    web4.web4_setStaticUrl();
+
+    // Verify URL was updated
+    if (mock_storage.get(web4.WEB4_STATIC_URL_KEY)) |stored_url| {
+        try testing.expectEqualStrings(new_url, stored_url);
+    } else {
+        try testing.expect(false);
+    }
+
+    // Test setOwner
+    const new_owner = "new.near";
+    mock_input = try testing.allocator.dupe(u8, "{\"accountId\": \"" ++ new_owner ++ "\"}");
+    web4.web4_setOwner();
+
+    // Verify owner was updated
+    if (mock_storage.get(web4.WEB4_OWNER_KEY)) |stored_owner| {
+        try testing.expectEqualStrings(new_owner, stored_owner);
+    } else {
+        try testing.expect(false);
+    }
+}
+
+test "access control - owner can update contract config" {
+    try setupTest();
+    defer cleanupTest();
+
+    // Setup: Set initial owner
+    const initial_owner = "owner.near";
+    try mock_storage.put(web4.WEB4_OWNER_KEY, initial_owner);
+    
+    // Setup: signer = owner account
+    mock_signer = try testing.allocator.dupe(u8, initial_owner);
+    mock_current_account = try testing.allocator.dupe(u8, "contract.near");
+
+    // Test setStaticUrl
+    const new_url = "ipfs://ownerurl";
+    mock_input = try testing.allocator.dupe(u8, "{\"url\": \"" ++ new_url ++ "\"}");
+    web4.web4_setStaticUrl();
+
+    // Verify URL was updated
+    if (mock_storage.get(web4.WEB4_STATIC_URL_KEY)) |stored_url| {
+        try testing.expectEqualStrings(new_url, stored_url);
+    } else {
+        try testing.expect(false);
+    }
+
+    // Test setOwner
+    const new_owner = "newowner.near";
+    mock_input = try testing.allocator.dupe(u8, "{\"accountId\": \"" ++ new_owner ++ "\"}");
+    web4.web4_setOwner();
+
+    // Verify owner was updated
+    if (mock_storage.get(web4.WEB4_OWNER_KEY)) |stored_owner| {
+        try testing.expectEqualStrings(new_owner, stored_owner);
+    } else {
+        try testing.expect(false);
+    }
+}
+
+test "access control - other accounts cannot update config" {
+    try setupTest();
+    defer cleanupTest();
+
+    // Setup: Set owner
+    const owner = "owner.near";
+    try mock_storage.put(web4.WEB4_OWNER_KEY, owner);
+    
+    // Setup: signer = random account
+    mock_signer = try testing.allocator.dupe(u8, "random.near");
+    mock_current_account = try testing.allocator.dupe(u8, "contract.near");
+
+    // Test setStaticUrl - should panic
+    mock_input = try testing.allocator.dupe(u8, "{\"url\": \"ipfs://fail\"}");
+    web4.web4_setStaticUrl();
+
+    // Test setOwner - should panic
+    mock_input = try testing.allocator.dupe(u8, "{\"accountId\": \"hacker.near\"}");
+    web4.web4_setOwner();
+}
+
 // Skipped: test panics as expected when handling invalid JSON
 // TODO: Implement proper panic testing infrastructure
 //test "web4_get handles invalid JSON input" {
