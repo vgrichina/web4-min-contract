@@ -59,13 +59,11 @@ const TestContext = struct {
 var ctx: TestContext = undefined;
 
 fn updateSigner(new_signer: []const u8) !void {
-    testing.allocator.free(mock_signer);
-    mock_signer = try testing.allocator.dupe(u8, new_signer);
+    try ctx.setSigner(new_signer);
 }
 
 fn updateCurrentAccount(new_account: []const u8) !void {
-    testing.allocator.free(mock_current_account);
-    mock_current_account = try testing.allocator.dupe(u8, new_account);
+    try ctx.setCurrentAccount(new_account);
 }
 
 // Mock NEAR runtime functions
@@ -139,25 +137,11 @@ export fn current_account_id(register_id: u64) void {
 
 // Test setup/cleanup helpers
 fn setupTest() !void {
-    mock_storage = std.StringHashMap([]const u8).init(testing.allocator);
-    mock_registers = std.AutoHashMap(u64, []const u8).init(testing.allocator);
-    
-    mock_input = try testing.allocator.dupe(u8, "");
-    mock_register = try testing.allocator.dupe(u8, "");
-    mock_return_value = try testing.allocator.dupe(u8, "");
-    mock_signer = try testing.allocator.dupe(u8, "test.near");
-    mock_current_account = try testing.allocator.dupe(u8, "test.near");
+    ctx = try TestContext.init();
 }
 
 fn cleanupTest() void {
-    mock_registers.deinit();
-    mock_storage.deinit();
-    
-    testing.allocator.free(mock_input);
-    testing.allocator.free(mock_register);
-    testing.allocator.free(mock_return_value);
-    testing.allocator.free(mock_signer);
-    testing.allocator.free(mock_current_account);
+    ctx.deinit();
 }
 
 test "web4_get returns default URL for new contract" {
@@ -165,14 +149,14 @@ test "web4_get returns default URL for new contract" {
     defer cleanupTest();
 
     // Set input JSON
-    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/\"}");
+    try ctx.setInput("{\"path\": \"/\"}");
 
     // Call the function
     web4.web4_get();
 
     // Verify response contains DEFAULT_STATIC_URL
-    try testing.expect(std.mem.indexOf(u8, mock_return_value, web4.DEFAULT_STATIC_URL) != null);
-    try testing.expect(std.mem.indexOf(u8, mock_return_value, "200") != null);
+    try testing.expect(std.mem.indexOf(u8, ctx.return_value, web4.DEFAULT_STATIC_URL) != null);
+    try testing.expect(std.mem.indexOf(u8, ctx.return_value, "200") != null);
 }
 
 test "web4_get serves index.html for SPA routes" {
@@ -180,13 +164,13 @@ test "web4_get serves index.html for SPA routes" {
     defer cleanupTest();
 
     // Set input JSON
-    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/about\"}");
+    try ctx.setInput("{\"path\": \"/about\"}");
 
     // Call the function
     web4.web4_get();
 
     // Verify response redirects to index.html
-    try testing.expect(std.mem.indexOf(u8, mock_return_value, "/index.html") != null);
+    try testing.expect(std.mem.indexOf(u8, ctx.return_value, "/index.html") != null);
 }
 
 test "web4_get uses custom static URL when set" {
@@ -195,17 +179,17 @@ test "web4_get uses custom static URL when set" {
 
     // Set custom URL in storage
     const custom_url = "ipfs://custom123";
-    try mock_storage.put(web4.WEB4_STATIC_URL_KEY, custom_url);
+    try ctx.storage.put(web4.WEB4_STATIC_URL_KEY, custom_url);
 
     // Set input JSON
-    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/\"}");
+    try ctx.setInput("{\"path\": \"/\"}");
 
     // Call the function
     web4.web4_get();
 
     // Verify response uses custom URL
-    try testing.expect(std.mem.indexOf(u8, mock_return_value, custom_url) != null);
-    try testing.expect(std.mem.indexOf(u8, mock_return_value, web4.DEFAULT_STATIC_URL) == null);
+    try testing.expect(std.mem.indexOf(u8, ctx.return_value, custom_url) != null);
+    try testing.expect(std.mem.indexOf(u8, ctx.return_value, web4.DEFAULT_STATIC_URL) == null);
 }
 
 test "web4_get handles paths with file extensions directly" {
@@ -213,14 +197,14 @@ test "web4_get handles paths with file extensions directly" {
     defer cleanupTest();
 
     // Set input JSON
-    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/style.css\"}");
+    try ctx.setInput("{\"path\": \"/style.css\"}");
 
     // Call the function
     web4.web4_get();
 
     // Verify response doesn't redirect to index.html
-    try testing.expect(std.mem.indexOf(u8, mock_return_value, "/index.html") == null);
-    try testing.expect(std.mem.indexOf(u8, mock_return_value, "/style.css") != null);
+    try testing.expect(std.mem.indexOf(u8, ctx.return_value, "/index.html") == null);
+    try testing.expect(std.mem.indexOf(u8, ctx.return_value, "/style.css") != null);
 }
 
 
@@ -234,12 +218,11 @@ test "access control - contract can update its own config" {
 
     // Test setStaticUrl
     const new_url = "ipfs://newurl123";
-    testing.allocator.free(mock_input);
-    mock_input = try testing.allocator.dupe(u8, "{\"url\": \"" ++ new_url ++ "\"}");
+    try ctx.setInput("{\"url\": \"" ++ new_url ++ "\"}");
     web4.web4_setStaticUrl();
 
     // Verify URL was updated
-    if (mock_storage.get(web4.WEB4_STATIC_URL_KEY)) |stored_url| {
+    if (ctx.storage.get(web4.WEB4_STATIC_URL_KEY)) |stored_url| {
         try testing.expectEqualStrings(new_url, stored_url);
     } else {
         try testing.expect(false);
@@ -247,12 +230,11 @@ test "access control - contract can update its own config" {
 
     // Test setOwner
     const new_owner = "new.near";
-    testing.allocator.free(mock_input);
-    mock_input = try testing.allocator.dupe(u8, "{\"accountId\": \"" ++ new_owner ++ "\"}");
+    try ctx.setInput("{\"accountId\": \"" ++ new_owner ++ "\"}");
     web4.web4_setOwner();
 
     // Verify owner was updated
-    if (mock_storage.get(web4.WEB4_OWNER_KEY)) |stored_owner| {
+    if (ctx.storage.get(web4.WEB4_OWNER_KEY)) |stored_owner| {
         try testing.expectEqualStrings(new_owner, stored_owner);
     } else {
         try testing.expect(false);
@@ -265,7 +247,7 @@ test "access control - owner can update contract config" {
 
     // Setup: Set initial owner
     const initial_owner = "owner.near";
-    try mock_storage.put(web4.WEB4_OWNER_KEY, initial_owner);
+    try ctx.storage.put(web4.WEB4_OWNER_KEY, initial_owner);
     
     // Setup: signer = owner account
     try updateSigner(initial_owner);
@@ -273,12 +255,11 @@ test "access control - owner can update contract config" {
 
     // Test setStaticUrl
     const new_url = "ipfs://ownerurl";
-    testing.allocator.free(mock_input);
-    mock_input = try testing.allocator.dupe(u8, "{\"url\": \"" ++ new_url ++ "\"}");
+    try ctx.setInput("{\"url\": \"" ++ new_url ++ "\"}");
     web4.web4_setStaticUrl();
 
     // Verify URL was updated
-    if (mock_storage.get(web4.WEB4_STATIC_URL_KEY)) |stored_url| {
+    if (ctx.storage.get(web4.WEB4_STATIC_URL_KEY)) |stored_url| {
         try testing.expectEqualStrings(new_url, stored_url);
     } else {
         try testing.expect(false);
@@ -286,12 +267,11 @@ test "access control - owner can update contract config" {
 
     // Test setOwner
     const new_owner = "newowner.near";
-    testing.allocator.free(mock_input);
-    mock_input = try testing.allocator.dupe(u8, "{\"accountId\": \"" ++ new_owner ++ "\"}");
+    try ctx.setInput("{\"accountId\": \"" ++ new_owner ++ "\"}");
     web4.web4_setOwner();
 
     // Verify owner was updated
-    if (mock_storage.get(web4.WEB4_OWNER_KEY)) |stored_owner| {
+    if (ctx.storage.get(web4.WEB4_OWNER_KEY)) |stored_owner| {
         try testing.expectEqualStrings(new_owner, stored_owner);
     } else {
         try testing.expect(false);
@@ -305,18 +285,18 @@ test "access control - owner can update contract config" {
 //
 //    // Setup: Set owner
 //    const owner = "owner.near";
-//    try mock_storage.put(web4.WEB4_OWNER_KEY, owner);
+//    try ctx.storage.put(web4.WEB4_OWNER_KEY, owner);
 //    
 //    // Setup: signer = random account
-//    mock_signer = try testing.allocator.dupe(u8, "random.near");
-//    mock_current_account = try testing.allocator.dupe(u8, "contract.near");
+//    try ctx.setSigner("random.near");
+//    try ctx.setCurrentAccount("contract.near");
 //
 //    // Test setStaticUrl - should panic
-//    mock_input = try testing.allocator.dupe(u8, "{\"url\": \"ipfs://fail\"}");
+//    try ctx.setInput("{\"url\": \"ipfs://fail\"}");
 //    web4.web4_setStaticUrl();
 //
 //    // Test setOwner - should panic
-//    mock_input = try testing.allocator.dupe(u8, "{\"accountId\": \"hacker.near\"}");
+//    try ctx.setInput("{\"accountId\": \"hacker.near\"}");
 //    web4.web4_setOwner();
 //}
 
