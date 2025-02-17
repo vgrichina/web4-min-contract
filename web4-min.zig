@@ -131,10 +131,6 @@ pub export fn web4_get() void {
     // Parse method arguments JSON and extract path
     const path = extract_string(inputData, "path") orelse "/";
 
-    // Log input data and extracted path
-    log(joinAlloc(.{ "inputData: ", inputData }));
-    log(joinAlloc(.{ "extracted path: ", path }));
-
     // Log request path
     log(joinAlloc(.{ "path: ", path }));
 
