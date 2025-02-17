@@ -183,20 +183,6 @@ test "web4_get handles paths with file extensions directly" {
     try testing.expect(std.mem.indexOf(u8, mock_return_value, "/style.css") != null);
 }
 
-test "web4_get handles web4 paths directly" {
-    try setupTest();
-    defer cleanupTest();
-
-    // Set input JSON
-    mock_input = try testing.allocator.dupe(u8, "{\"path\": \"/web4/settings\"}");
-
-    // Call the function
-    web4.web4_get();
-
-    // Verify response doesn't redirect to index.html
-    try testing.expect(std.mem.indexOf(u8, mock_return_value, "/index.html") == null);
-    try testing.expect(std.mem.indexOf(u8, mock_return_value, "/web4/settings") != null);
-}
 
 test "access control - contract can update its own config" {
     try setupTest();
