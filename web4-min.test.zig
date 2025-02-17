@@ -48,13 +48,11 @@ export fn value_return(len: u64, ptr: u64) void {
     };
 }
 
-export fn storage_read(key_len: u64, key_ptr: u64, _: u64) u64 {
+export fn storage_read(key_len: u64, key_ptr: u64, register_id: u64) u64 {
     const key = @as([*]const u8, @ptrFromInt(key_ptr))[0..key_len];
     if (mock_storage.get(key)) |value| {
-        testing.allocator.free(mock_register);
-        mock_register = testing.allocator.dupe(u8, value) catch {
-            panic("Failed to duplicate register value");
-            unreachable;
+        mock_registers.put(register_id, value) catch {
+            panic("Failed to store in register");
         };
         return 1;
     }
