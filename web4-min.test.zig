@@ -68,8 +68,9 @@ export fn storage_write(key_len: u64, key_ptr: u64, value_len: u64, value_ptr: u
     return 1;
 }
 
-export fn log_utf8(_: u64, _: u64) void {
-    // No-op for tests
+export fn log_utf8(len: u64, ptr: u64) void {
+    const msg = @as([*]const u8, @ptrFromInt(ptr))[0..len];
+    std.debug.print("LOG: {s}\n", .{msg});
 }
 
 export fn panic_utf8(_: u64, _: u64) void {
