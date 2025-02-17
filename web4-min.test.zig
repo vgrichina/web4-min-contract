@@ -75,12 +75,16 @@ export fn panic_utf8(_: u64, _: u64) void {
     // No-op for tests, or could set a flag to check if panic occurred
 }
 
-export fn signer_account_id(_: u64) void {
-    mock_register = mock_signer;
+export fn signer_account_id(register_id: u64) void {
+    mock_registers.put(register_id, mock_signer) catch {
+        panic("Failed to store in register");
+    };
 }
 
-export fn current_account_id(_: u64) void {
-    mock_register = mock_current_account;
+export fn current_account_id(register_id: u64) void {
+    mock_registers.put(register_id, mock_current_account) catch {
+        panic("Failed to store in register");
+    };
 }
 
 // Test setup/cleanup helpers
