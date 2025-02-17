@@ -210,6 +210,7 @@ test "access control - contract can update its own config" {
 
     // Test setStaticUrl
     const new_url = "ipfs://newurl123";
+    testing.allocator.free(mock_input);
     mock_input = try testing.allocator.dupe(u8, "{\"url\": \"" ++ new_url ++ "\"}");
     web4.web4_setStaticUrl();
 
@@ -222,6 +223,7 @@ test "access control - contract can update its own config" {
 
     // Test setOwner
     const new_owner = "new.near";
+    testing.allocator.free(mock_input);
     mock_input = try testing.allocator.dupe(u8, "{\"accountId\": \"" ++ new_owner ++ "\"}");
     web4.web4_setOwner();
 
@@ -247,6 +249,7 @@ test "access control - owner can update contract config" {
 
     // Test setStaticUrl
     const new_url = "ipfs://ownerurl";
+    testing.allocator.free(mock_input);
     mock_input = try testing.allocator.dupe(u8, "{\"url\": \"" ++ new_url ++ "\"}");
     web4.web4_setStaticUrl();
 
@@ -259,6 +262,7 @@ test "access control - owner can update contract config" {
 
     // Test setOwner
     const new_owner = "newowner.near";
+    testing.allocator.free(mock_input);
     mock_input = try testing.allocator.dupe(u8, "{\"accountId\": \"" ++ new_owner ++ "\"}");
     web4.web4_setOwner();
 
