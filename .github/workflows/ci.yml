@@ -36,16 +36,11 @@ jobs:
     - name: Build release
       run: zig build --release=small
 
-    - name: Prepare artifact
-      run: |
-        mkdir -p dist
-        cp zig-out/bin/web4-min dist/web4-min.wasm
-
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: web4-min
-        path: dist/web4-min.wasm
+        path: zig-out/bin/web4-min.wasm
 
   publish:
     needs: build
